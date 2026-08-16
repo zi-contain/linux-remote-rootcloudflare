@@ -52,8 +52,8 @@ export async function onRequestGet({ request, env }) {
       // 连接建立提示
       enqueue(': connected\n\n');
 
-      const deadline = Date.now() + 15000; // 最多等待 15 秒
-      const pollInterval = 1000;            // 探测间隔 1 秒
+      const deadline = Date.now() + 30000; // 最多等待 30 秒
+      const pollInterval = 500;             // 探测间隔 0.5 秒（加快结果推送）
       let beatCount = 0;
       let resolved = false;
 
@@ -81,9 +81,9 @@ export async function onRequestGet({ request, env }) {
           break;
         }
 
-        // 心跳注释：每 ~5 秒发一次
+        // 心跳注释：每 ~5 秒发一次（10 × 500ms）
         beatCount++;
-        if (beatCount % 5 === 0) {
+        if (beatCount % 10 === 0) {
           enqueue(': beat\n\n');
         }
 

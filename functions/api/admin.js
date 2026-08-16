@@ -14,9 +14,9 @@
  *   get_install_cmd GET   生成一键植入命令
  */
 
-import { jsonResponse, getBaseUrl, b64encode } from '../_lib/helpers.js';
+import { jsonResponse, getBaseUrl, b64encode, randomHex } from '../_lib/helpers.js';
 import { requireAuth, verifyCsrf } from '../_lib/auth.js';
-import { markOfflineAgents } from '../_lib/db.js';
+import { markOfflineAgents, getSetting, setSetting, ensureSettingsTable } from '../_lib/db.js';
 
 /** 统一入口：根据 action 分发 */
 async function handleRequest(context, method) {
@@ -68,6 +68,12 @@ async function handleRequest(context, method) {
     case 'get_install_cmd':
       return getInstallCmd(request);
 
+    case 'generate_api_key':
+      return generateApiKey(env);
+
+    case 'get_api_key':
+      return getApiKey(env);
+
     default:
       return jsonResponse({ error: '未知操作' }, 400);
   }
@@ -91,8 +97,8 @@ async function getAgents(env) {
     remark: row.remark || '',
     status: row.status,
     status_text: row.status === 1 ? '在线' : '离线',
-    last_seen: row.last_seen || '从未',
-    created_at: row.created_at || '从未',
+    last_seen: row.last_seen ? row.last_seen + 'Z' : '从未',
+    created_at: row.created_at ? row.created_at + 'Z' : '从未',
   }));
 
   return jsonResponse({ agents });
@@ -146,7 +152,7 @@ async function getResult(env, formData) {
     result: cmd.result || '',
     exit_code: cmd.exit_code !== null ? cmd.exit_code : null,
     command: cmd.command,
-    executed_at: cmd.executed_at || null,
+    executed_at: cmd.executed_at ? cmd.executed_at + 'Z' : null,
   });
 }
 
@@ -165,8 +171,8 @@ async function getHistory(env, formData) {
     status: row.status,
     result: row.result || '',
     exit_code: row.exit_code !== null ? row.exit_code : null,
-    created_at: row.created_at || '从未',
-    executed_at: row.executed_at || '从未',
+    created_at: row.created_at ? row.created_at + 'Z' : '从未',
+    executed_at: row.executed_at ? row.executed_at + 'Z' : '从未',
   }));
 
   return jsonResponse({ history });
@@ -198,6 +204,21 @@ async function getInstallCmd(request) {
   const baseUrl = getBaseUrl(request);
   const installCmd = `curl -sSL '${baseUrl}/api/agent-sh' | bash`;
   return jsonResponse({ install_cmd: installCmd, base_url: baseUrl });
+}
+
+/** 生成 API 密钥（用于外部控制接口） */
+async function generateApiKey(env) {
+  await ensureSettingsTable(env);
+  const key = 'rak_' + randomHex(24);
+  await setSetting(env, 'api_key', key);
+  return jsonResponse({ success: true, api_key: key });
+}
+
+/** 获取当前 API 密钥 */
+async function getApiKey(env) {
+  await ensureSettingsTable(env);
+  const key = await getSetting(env, 'api_key');
+  return jsonResponse({ api_key: key || '' });
 }
 
 export async function onRequestGet(context) {

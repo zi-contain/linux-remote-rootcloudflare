@@ -47,6 +47,14 @@ export async function onRequestPost({ request, env }) {
      WHERE agent_id = ?`
   ).bind(hostname, hostname, ip, ip, agentId).run();
 
+  // 概率清理旧命令记录（约每 20 次连接执行一次，减少 D1 writes 消耗）
+  // 保留最近 7 天的命令记录，自动删除更早的
+  if (Math.random() < 0.05) {
+    await env.DB.prepare(
+      `DELETE FROM commands WHERE created_at < datetime('now', '-7 days')`
+    ).run();
+  }
+
   // 流式响应
   const encoder = new TextEncoder();
   let cancelled = false;
@@ -56,11 +64,11 @@ export async function onRequestPost({ request, env }) {
       // 连接确认
       controller.enqueue(encoder.encode(`OK ${agentId}\n`));
 
-      const deadline = Date.now() + 12000; // 单次连接最长 12 秒
-      const pollInterval = 1000;            // 探测间隔 1 秒
-      const beatEvery = 5000;               // 每 5 秒发一次心跳
+      const deadline = Date.now() + 25000; // 单次连接最长 25 秒（减少重连次数，降低 D1 writes）
+      const pollInterval = 500;             // 探测间隔 0.5 秒（加快命令下发速度）
+      const beatEvery = 10000;              // 每 10 秒发一次心跳（减少流量）
       let lastBeat = Date.now();
-      let lastSeenUpdate = Date.now();       // last_seen 更新节流（每 5 秒一次，减少 D1 writes）
+      // last_seen 已在连接初始时更新，25 秒后重连会再次更新，循环内无需重复写入
 
       while (Date.now() < deadline && !cancelled) {
         // 探测待执行命令
@@ -85,14 +93,6 @@ export async function onRequestPost({ request, env }) {
         if (now - lastBeat >= beatEvery) {
           controller.enqueue(encoder.encode('PING\n'));
           lastBeat = now;
-        }
-
-        // 更新 last_seen（节流：每 5 秒写一次，而非每秒，大幅降低 D1 writes 消耗）
-        if (now - lastSeenUpdate >= beatEvery) {
-          await env.DB.prepare(
-            "UPDATE agents SET last_seen = datetime('now') WHERE agent_id = ?"
-          ).bind(agentId).run();
-          lastSeenUpdate = now;
         }
 
         await new Promise((r) => setTimeout(r, pollInterval));

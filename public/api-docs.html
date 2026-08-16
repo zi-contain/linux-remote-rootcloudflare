@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 文档 - 远控管理系统</title>
+
+    <!-- Bootstrap 5.3 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons 1.11 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- 全局设计系统 -->
+    <link rel="stylesheet" href="/assets/css/style.css">
+
+    <!-- API 文档专用样式 -->
+    <style>
+        /* ============================================================
+           布局
+           ============================================================ */
+        .docs-container { max-width: 1200px; }
+
+        .docs-layout { display: block; }
+
+        @media (min-width: 992px) {
+            .docs-layout {
+                display: grid;
+                grid-template-columns: 232px 1fr;
+                gap: 28px;
+                align-items: start;
+            }
+            .docs-sidebar {
+                position: sticky;
+                top: 80px;
+            }
+        }
+
+        /* ============================================================
+           顶部导航（补充）
+           ============================================================ */
+        .btn-back-docs {
+            width: 36px; height: 36px;
+            display: grid; place-items: center;
+            background: var(--bg-surface-2);
+            border: 1px solid var(--border);
+            color: var(--text-2);
+            border-radius: var(--radius-xs);
+            transition: all .18s;
+        }
+        .btn-back-docs:hover { background: var(--bg-surface-3); color: #fff; border-color: var(--border-light); }
+
+        .btn-key-gen {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-600));
+            border: none; color: #fff;
+            padding: 8px 16px;
+            border-radius: var(--radius-xs);
+            font-weight: 600; font-size: .88rem;
+            transition: transform .15s, box-shadow .2s, filter .2s;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn-key-gen:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 8px 20px var(--primary-glow); filter: brightness(1.06); }
+        .btn-key-gen:active { transform: translateY(0); }
+        .btn-key-gen:disabled { opacity: .7; cursor: default; transform: none; filter: none; }
+        .btn-key-gen .spinner-ring { width: 16px; height: 16px; border-width: 2px; vertical-align: -3px; margin-right: 2px; }
+
+        /* ============================================================
+           侧边栏导航
+           ============================================================ */
+        .docs-sidebar .nav-card {
+            background: linear-gradient(160deg, rgba(24, 32, 58, .6), rgba(17, 23, 40, .6));
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .docs-nav-title {
+            font-size: .72rem; font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .8px;
+            padding: 6px 10px 10px;
+            display: flex; align-items: center; gap: 7px;
+        }
+        .docs-nav-title i { color: var(--primary); font-size: .9rem; }
+
+        .docs-nav { list-style: none; margin: 0; padding: 0; }
+        .docs-nav li { margin: 0; }
+
+        .docs-nav-link {
+            display: flex; align-items: center; gap: 9px;
+            padding: 8px 12px;
+            border-radius: var(--radius-xs);
+            color: var(--text-2);
+            font-size: .86rem;
+            transition: background .15s, color .15s;
+            white-space: nowrap;
+        }
+        .docs-nav-link i { font-size: .82rem; width: 15px; text-align: center; color: var(--text-muted); transition: color .15s; }
+        .docs-nav-link:hover { background: var(--bg-surface-2); color: var(--text); }
+        .docs-nav-link:hover i { color: var(--primary); }
+        .docs-nav-link.active { background: rgba(79, 140, 255, .14); color: #fff; }
+        .docs-nav-link.active i { color: var(--primary); }
+        .docs-nav-link .num { margin-left: auto; font-family: var(--font-mono); font-size: .74rem; color: var(--text-muted); }
+
+        /* 移动端横向导航 */
+        @media (max-width: 991.98px) {
+            .docs-sidebar .nav-card { padding: 10px; }
+            .docs-nav-title { padding: 4px 8px 8px; }
+            .docs-nav {
+                display: flex; gap: 6px; overflow-x: auto;
+                padding-bottom: 4px; scrollbar-width: thin;
+            }
+            .docs-nav li { flex: 0 0 auto; }
+            .docs-nav-link { padding: 7px 12px; }
+            .docs-nav-link .num { display: none; }
+        }
+
+        /* ============================================================
+           内容区
+           ============================================================ */
+        .docs-content { min-width: 0; }
+
+        .docs-section { margin-bottom: 28px; scroll-margin-top: 84px; }
+
+        .section-title-bar {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 14px;
+        }
+        .section-title-bar .bar-icon {
+            width: 30px; height: 30px;
+            display: grid; place-items: center;
+            border-radius: 9px;
+            background: rgba(79, 140, 255, .14);
+            color: var(--primary);
+            font-size: .95rem;
+        }
+        .section-title-bar h2 {
+            font-size: 1.15rem; font-weight: 700; margin: 0;
+        }
+        .section-title-bar .bar-sub { color: var(--text-muted); font-size: .82rem; margin-left: 6px; }
+
+        /* ============================================================
+           Hero
+           ============================================================ */
+        .docs-hero {
+            padding: 26px;
+            display: flex; gap: 22px;
+            position: relative; overflow: hidden;
+        }
+        .docs-hero::after {
+            content: ''; position: absolute; right: -40px; top: -40px;
+            width: 180px; height: 180px; border-radius: 50%;
+            background: var(--primary-glow); opacity: .12; filter: blur(10px);
+        }
+        .hero-icon {
+            width: 56px; height: 56px; flex: 0 0 56px;
+            border-radius: 16px;
+            display: grid; place-items: center;
+            font-size: 1.6rem; color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            box-shadow: 0 10px 26px var(--primary-glow);
+        }
+        .hero-body { flex: 1; min-width: 0; }
+        .hero-body h2 { font-size: 1.35rem; font-weight: 800; margin-bottom: 6px; letter-spacing: .2px; }
+        .hero-desc { color: var(--text-2); font-size: .92rem; margin-bottom: 18px; }
+
+        .hero-meta {
+            display: grid; grid-template-columns: 1fr; gap: 12px;
+            margin-bottom: 16px;
+        }
+        @media (min-width: 640px) {
+            .hero-meta { grid-template-columns: 1fr 1fr; }
+        }
+        .meta-item {
+            background: var(--bg-app);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            padding: 12px 14px;
+        }
+        .meta-label {
+            display: block;
+            font-size: .72rem; font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .6px;
+            margin-bottom: 6px;
+        }
+        .meta-value {
+            font-family: var(--font-mono);
+            font-size: .85rem;
+            color: var(--cyan);
+            word-break: break-all;
+        }
+        .base-url-row { display: flex; align-items: center; gap: 8px; }
+        .base-url-row .meta-value { flex: 1; min-width: 0; }
+        .btn-copy-url { flex: 0 0 auto; }
+        .btn-copy-url:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+        .hero-note {
+            display: flex; align-items: flex-start; gap: 9px;
+            background: rgba(79, 140, 255, .08);
+            border: 1px solid rgba(79, 140, 255, .28);
+            border-radius: var(--radius-xs);
+            padding: 11px 14px;
+            color: var(--text-2);
+            font-size: .86rem;
+        }
+        .hero-note i { color: var(--primary); margin-top: 2px; }
+        .hero-note code {
+            background: var(--bg-surface-3);
+            color: var(--cyan);
+            padding: 1px 7px;
+            border-radius: 5px;
+            font-size: .82rem;
+        }
+
+        /* ============================================================
+           端点卡片
+           ============================================================ */
+        .endpoint-card {
+            padding: 22px;
+        }
+        .endpoint-head {
+            display: flex; align-items: center; gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .method-badge {
+            font-family: var(--font-mono);
+            font-size: .78rem; font-weight: 700;
+            padding: 4px 11px;
+            border-radius: 7px;
+            letter-spacing: .6px;
+            flex: 0 0 auto;
+        }
+        .method-badge.get {
+            background: rgba(52, 211, 153, .14);
+            color: var(--success);
+            border: 1px solid rgba(52, 211, 153, .35);
+        }
+        .method-badge.post {
+            background: rgba(79, 140, 255, .14);
+            color: var(--primary);
+            border: 1px solid rgba(79, 140, 255, .35);
+        }
+        .endpoint-path {
+            font-family: var(--font-mono);
+            font-size: .9rem;
+            color: var(--text);
+            word-break: break-all;
+            line-height: 1.5;
+        }
+        .endpoint-path .qp { color: var(--cyan); }
+        .endpoint-path .amp { color: var(--text-muted); }
+        .endpoint-anchor {
+            margin-left: auto;
+            color: var(--text-muted);
+            font-size: .9rem;
+            transition: color .15s;
+        }
+        .endpoint-anchor:hover { color: var(--primary); }
+
+        .endpoint-desc {
+            color: var(--text-2);
+            font-size: .9rem;
+            margin-bottom: 18px;
+        }
+
+        .sub-label {
+            display: flex; align-items: center; gap: 7px;
+            font-size: .76rem; font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .6px;
+            margin: 18px 0 10px;
+        }
+        .sub-label.req i { color: var(--primary); }
+        .sub-label.res i { color: var(--success); }
+        .sub-label.params i { color: var(--purple); }
+
+        /* ============================================================
+           参数表
+           ============================================================ */
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .86rem;
+            overflow: hidden;
+            border-radius: var(--radius-xs);
+        }
+        .param-table th,
+        .param-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .param-table thead th {
+            background: var(--bg-surface-2);
+            color: var(--text-muted);
+            font-size: .74rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: .5px;
+        }
+        .param-table tbody tr:last-child td { border-bottom: none; }
+        .param-table tbody tr:hover { background: rgba(79, 140, 255, .05); }
+        .param-table td code,
+        .param-table th code {
+            font-family: var(--font-mono);
+            font-size: .82rem;
+            color: var(--cyan);
+            background: rgba(34, 211, 238, .1);
+            padding: 1px 7px;
+            border-radius: 5px;
+        }
+        .param-table .req-yes { color: var(--success); font-weight: 600; }
+        .param-table .req-no { color: var(--text-muted); }
+        .param-table .type-pill {
+            font-family: var(--font-mono); font-size: .78rem;
+            color: var(--purple);
+            background: rgba(167, 139, 250, .12);
+            padding: 1px 8px; border-radius: 5px;
+        }
+
+        .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-xs); }
+
+        /* ============================================================
+           代码块
+           ============================================================ */
+        .code-block {
+            background: var(--bg-app);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            overflow: hidden;
+            margin-bottom: 4px;
+        }
+        .code-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 14px;
+            background: var(--bg-surface-2);
+            border-bottom: 1px solid var(--border);
+        }
+        .code-label {
+            display: flex; align-items: center; gap: 7px;
+            font-size: .74rem; font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .5px;
+        }
+        .code-label .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .code-label.json .dot { background: var(--warning); }
+        .code-label.bash .dot { background: var(--success); }
+        .code-label.http .dot { background: var(--primary); }
+        .copy-code-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-2);
+            font-size: .76rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex; align-items: center; gap: 5px;
+            transition: all .15s;
+        }
+        .copy-code-btn:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+        .code-body { margin: 0; padding: 16px; overflow-x: auto; }
+        .code-body code {
+            font-family: var(--font-mono);
+            font-size: .84rem;
+            line-height: 1.65;
+            color: var(--text);
+            white-space: pre;
+        }
+
+        /* JSON 高亮 */
+        code.lang-json .tok-key { color: var(--primary); }
+        code.lang-json .tok-str { color: var(--success); }
+        code.lang-json .tok-num { color: var(--warning); }
+        code.lang-json .tok-bool { color: var(--purple); }
+        code.lang-json .tok-null { color: var(--text-muted); }
+
+        /* Bash 高亮 */
+        code.lang-bash .bash-comment { color: var(--text-muted); font-style: italic; }
+        code.lang-bash .bash-str { color: var(--success); }
+        code.lang-bash .bash-flag { color: var(--purple); font-weight: 600; }
+        code.lang-bash .bash-url { color: var(--cyan); }
+
+        /* HTTP 高亮 */
+        code.lang-http .http-method { color: var(--warning); font-weight: 700; }
+        code.lang-http .http-head { color: var(--purple); }
+
+        /* ============================================================
+           API 密钥弹窗
+           ============================================================ */
+        .alert-soft.alert-warning {
+            background: rgba(251, 191, 36, .1);
+            border-color: rgba(251, 191, 36, .4);
+            color: var(--warning);
+        }
+        .api-key-label {
+            font-size: .8rem; font-weight: 700;
+            color: var(--text-2);
+            margin: 18px 0 8px;
+        }
+        .api-key-display {
+            display: flex; align-items: stretch; gap: 10px;
+            background: var(--bg-app);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xs);
+            padding: 8px;
+        }
+        .api-key-display code {
+            flex: 1; min-width: 0;
+            font-family: var(--font-mono);
+            font-size: .88rem;
+            color: var(--success);
+            padding: 8px 12px;
+            word-break: break-all;
+            overflow-x: auto;
+        }
+        .btn-copy-key {
+            flex: 0 0 auto;
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--bg-surface-3);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 7px;
+            padding: 0 16px;
+            font-size: .84rem; font-weight: 500;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .btn-copy-key:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .api-key-hint {
+            margin-top: 14px;
+            font-size: .82rem;
+            color: var(--text-muted);
+        }
+        .api-key-hint code {
+            font-family: var(--font-mono);
+            background: var(--bg-surface-3);
+            color: var(--cyan);
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: .8rem;
+        }
+
+        /* ============================================================
+           返回顶部
+           ============================================================ */
+        .back-to-top {
+            position: fixed;
+            right: 24px; bottom: 28px;
+            width: 44px; height: 44px;
+            display: grid; place-items: center;
+            background: var(--bg-surface-2);
+            border: 1px solid var(--border);
+            color: var(--text-2);
+            border-radius: 50%;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            opacity: 0; visibility: hidden;
+            transform: translateY(12px);
+            transition: opacity .25s, transform .25s, background .18s, color .18s, border-color .18s;
+            z-index: 90;
+        }
+        .back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
+        .back-to-top:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+        /* ============================================================
+           页脚
+           ============================================================ */
+        .docs-footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: .82rem;
+            padding: 24px 0 8px;
+            border-top: 1px solid var(--border);
+            margin-top: 12px;
+        }
+
+        /* ============================================================
+           响应式
+           ============================================================ */
+        @media (max-width: 640px) {
+            .docs-hero { flex-direction: column; padding: 20px; gap: 16px; }
+            .hero-icon { width: 48px; height: 48px; flex-basis: 48px; font-size: 1.4rem; }
+            .endpoint-card { padding: 18px; }
+            .code-body { padding: 14px; }
+            .code-body code { font-size: .8rem; }
+            .btn-key-gen span { display: none; }
+            .btn-key-gen { padding: 8px 12px; }
+            .nav-brand .brand-text { display: none; }
+            .back-to-top { right: 16px; bottom: 20px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ============ 顶部导航 ============ -->
+    <nav class="top-nav">
+        <div class="nav-brand">
+            <a href="dashboard.html" class="btn-back-docs" title="返回控制台">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div class="brand-icon"><i class="bi bi-code-slash"></i></div>
+            <span class="brand-text">API 文档</span>
+        </div>
+        <div class="nav-actions">
+            <div class="nav-user">
+                <i class="bi bi-person-circle"></i>
+                <span id="navUsername">admin</span>
+            </div>
+            <button class="btn-key-gen" id="genKeyBtn" type="button">
+                <i class="bi bi-key"></i><span>生成API密钥</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ============ 主容器 ============ -->
+    <div class="main-container docs-container">
+        <div class="docs-layout">
+
+            <!-- 侧边导航 -->
+            <aside class="docs-sidebar">
+                <div class="nav-card">
+                    <div class="docs-nav-title">
+                        <i class="bi bi-list-nested"></i> 接口导航
+                    </div>
+                    <ul class="docs-nav">
+                        <li><a class="docs-nav-link" href="#auth"><i class="bi bi-shield-lock"></i>认证方式</a></li>
+                        <li><a class="docs-nav-link" href="#ep-list"><i class="bi bi-hdd-network"></i>获取主机列表<span class="num">01</span></a></li>
+                        <li><a class="docs-nav-link" href="#ep-send"><i class="bi bi-terminal"></i>下发命令<span class="num">02</span></a></li>
+                        <li><a class="docs-nav-link" href="#ep-result"><i class="bi bi-check2-square"></i>获取命令结果<span class="num">03</span></a></li>
+                        <li><a class="docs-nav-link" href="#ep-history"><i class="bi bi-clock-history"></i>获取命令历史<span class="num">04</span></a></li>
+                        <li><a class="docs-nav-link" href="#ep-agent"><i class="bi bi-pc-display"></i>获取单个主机信息<span class="num">05</span></a></li>
+                        <li><a class="docs-nav-link" href="#curl"><i class="bi bi-terminal-fill"></i>curl 示例</a></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- 内容区 -->
+            <main class="docs-content">
+
+                <!-- Hero / 认证 -->
+                <section class="docs-section" id="auth">
+                    <div class="docs-hero surface-card">
+                        <div class="hero-icon"><i class="bi bi-shield-lock-fill"></i></div>
+                        <div class="hero-body">
+                            <h2>远控管理系统 API</h2>
+                            <p class="hero-desc">通过 API 密钥以编程方式管理主机、下发命令并获取执行结果。所有接口统一以 JSON 格式返回数据，适用于自动化运维、监控集成与脚本编排。</p>
+                            <div class="hero-meta">
+                                <div class="meta-item">
+                                    <span class="meta-label">认证方式</span>
+                                    <code class="meta-value">Authorization: Bearer &lt;api_key&gt;</code>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-label">基础地址</span>
+                                    <div class="base-url-row">
+                                        <code class="meta-value" id="baseUrl">https://remote-admin.pages.dev</code>
+                                        <button class="btn-icon btn-copy-url" id="copyBaseUrlBtn" title="复制基础地址" type="button">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="hero-note">
+                                <i class="bi bi-info-circle"></i>
+                                <span>所有请求均需在请求头中携带 API 密钥。点击右上角「生成API密钥」按钮即可创建新密钥（调用 <code>POST /api/admin</code>，action=generate_api_key）。</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 1. 获取主机列表 -->
+                <section class="docs-section" id="ep-list">
+                    <div class="section-title-bar">
+                        <div class="bar-icon"><i class="bi bi-hdd-network"></i></div>
+                        <h2>获取主机列表</h2>
+                    </div>
+                    <div class="surface-card endpoint-card">
+                        <div class="endpoint-head">
+                            <span class="method-badge get">GET</span>
+                            <code class="endpoint-path">/api/control?action=list_agents</code>
+                            <a href="#ep-list" class="endpoint-anchor"><i class="bi bi-link-45deg"></i></a>
+                        </div>
+                        <p class="endpoint-desc">返回所有已接入的受控主机，按在线状态与最后心跳时间排序。</p>
+
+                        <div class="sub-label params"><i class="bi bi-sliders"></i>参数说明</div>
+                        <div class="table-scroll">
+                            <table class="param-table">
+                                <thead>
+                                    <tr><th>参数</th><th>位置</th><th>类型</th><th>必填</th><th>说明</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>action</code></td><td>query</td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>固定值 <code>list_agents</code></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="sub-label req"><i class="bi bi-arrow-up-right-circle"></i>请求示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label http"><span class="dot"></span>HTTP</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-http">GET /api/control?action=list_agents
+Authorization: Bearer YOUR_API_KEY</code></pre>
+                        </div>
+
+                        <div class="sub-label res"><i class="bi bi-arrow-down-left-circle"></i>响应示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label json"><span class="dot"></span>JSON · 200</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-json">{
+  "agents": [
+    {
+      "agent_id": "xxx-xxx-xxx",
+      "hostname": "web-server-01",
+      "ip_address": "1.2.3.4",
+      "os_info": "Linux...",
+      "remark": "主服务器",
+      "status": 1,
+      "status_text": "在线",
+      "last_seen": "2026-08-16T07:25:28Z",
+      "created_at": "2026-08-16T07:25:28Z"
+    }
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. 下发命令 -->
+                <section class="docs-section" id="ep-send">
+                    <div class="section-title-bar">
+                        <div class="bar-icon"><i class="bi bi-terminal"></i></div>
+                        <h2>下发命令</h2>
+                    </div>
+                    <div class="surface-card endpoint-card">
+                        <div class="endpoint-head">
+                            <span class="method-badge post">POST</span>
+                            <code class="endpoint-path">/api/control</code>
+                            <a href="#ep-send" class="endpoint-anchor"><i class="bi bi-link-45deg"></i></a>
+                        </div>
+                        <p class="endpoint-desc">向指定主机下发一条 Shell 命令，返回命令 ID，可用于后续查询执行结果。</p>
+
+                        <div class="sub-label params"><i class="bi bi-sliders"></i>参数说明（form-data）</div>
+                        <div class="table-scroll">
+                            <table class="param-table">
+                                <thead>
+                                    <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>action</code></td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>固定值 <code>send_command</code></td></tr>
+                                    <tr><td><code>agent_id</code></td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>目标主机 ID</td></tr>
+                                    <tr><td><code>command</code></td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>要执行的 Shell 命令</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="sub-label req"><i class="bi bi-arrow-up-right-circle"></i>请求示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label http"><span class="dot"></span>HTTP</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-http">POST /api/control
+Authorization: Bearer YOUR_API_KEY
+Content-Type: application/x-www-form-urlencoded
+
+action=send_command
+agent_id=xxx-xxx-xxx
+command=ls -la</code></pre>
+                        </div>
+
+                        <div class="sub-label res"><i class="bi bi-arrow-down-left-circle"></i>响应示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label json"><span class="dot"></span>JSON · 200</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-json">{
+  "success": true,
+  "command_id": 42
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. 获取命令结果 -->
+                <section class="docs-section" id="ep-result">
+                    <div class="section-title-bar">
+                        <div class="bar-icon"><i class="bi bi-check2-square"></i></div>
+                        <h2>获取命令结果</h2>
+                    </div>
+                    <div class="surface-card endpoint-card">
+                        <div class="endpoint-head">
+                            <span class="method-badge get">GET</span>
+                            <code class="endpoint-path">/api/control?action=get_result&amp;cmd_id=42</code>
+                            <a href="#ep-result" class="endpoint-anchor"><i class="bi bi-link-45deg"></i></a>
+                        </div>
+                        <p class="endpoint-desc">根据命令 ID 查询单条命令的执行状态与输出结果。状态值：<code>pending</code>（待执行）、<code>executing</code>（执行中）、<code>completed</code>（已完成）。</p>
+
+                        <div class="sub-label params"><i class="bi bi-sliders"></i>参数说明</div>
+                        <div class="table-scroll">
+                            <table class="param-table">
+                                <thead>
+                                    <tr><th>参数</th><th>位置</th><th>类型</th><th>必填</th><th>说明</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>action</code></td><td>query</td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>固定值 <code>get_result</code></td></tr>
+                                    <tr><td><code>cmd_id</code></td><td>query</td><td><span class="type-pill">number</span></td><td class="req-yes">是</td><td>命令 ID（由下发命令接口返回）</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="sub-label req"><i class="bi bi-arrow-up-right-circle"></i>请求示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label http"><span class="dot"></span>HTTP</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-http">GET /api/control?action=get_result&amp;cmd_id=42
+Authorization: Bearer YOUR_API_KEY</code></pre>
+                        </div>
+
+                        <div class="sub-label res"><i class="bi bi-arrow-down-left-circle"></i>响应示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label json"><span class="dot"></span>JSON · 200</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-json">{
+  "id": 42,
+  "status": "completed",
+  "result": "total 8\ndrwxr-xr-x 2 root root 4096...",
+  "exit_code": 0,
+  "command": "ls -la",
+  "executed_at": "2026-08-16T07:25:30Z"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. 获取命令历史 -->
+                <section class="docs-section" id="ep-history">
+                    <div class="section-title-bar">
+                        <div class="bar-icon"><i class="bi bi-clock-history"></i></div>
+                        <h2>获取命令历史</h2>
+                    </div>
+                    <div class="surface-card endpoint-card">
+                        <div class="endpoint-head">
+                            <span class="method-badge get">GET</span>
+                            <code class="endpoint-path">/api/control?action=get_history&amp;agent_id=xxx</code>
+                            <a href="#ep-history" class="endpoint-anchor"><i class="bi bi-link-45deg"></i></a>
+                        </div>
+                        <p class="endpoint-desc">获取指定主机最近 50 条命令记录，按时间倒序排列。</p>
+
+                        <div class="sub-label params"><i class="bi bi-sliders"></i>参数说明</div>
+                        <div class="table-scroll">
+                            <table class="param-table">
+                                <thead>
+                                    <tr><th>参数</th><th>位置</th><th>类型</th><th>必填</th><th>说明</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>action</code></td><td>query</td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>固定值 <code>get_history</code></td></tr>
+                                    <tr><td><code>agent_id</code></td><td>query</td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>目标主机 ID</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="sub-label req"><i class="bi bi-arrow-up-right-circle"></i>请求示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label http"><span class="dot"></span>HTTP</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-http">GET /api/control?action=get_history&amp;agent_id=xxx-xxx-xxx
+Authorization: Bearer YOUR_API_KEY</code></pre>
+                        </div>
+
+                        <div class="sub-label res"><i class="bi bi-arrow-down-left-circle"></i>响应示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label json"><span class="dot"></span>JSON · 200</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-json">{
+  "history": [
+    {
+      "id": 42,
+      "command": "ls -la",
+      "status": "completed",
+      "result": "...",
+      "exit_code": 0,
+      "created_at": "2026-08-16T07:25:28Z",
+      "executed_at": "2026-08-16T07:25:30Z"
+    }
+  ]
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. 获取单个主机信息 -->
+                <section class="docs-section" id="ep-agent">
+                    <div class="section-title-bar">
+                        <div class="bar-icon"><i class="bi bi-pc-display"></i></div>
+                        <h2>获取单个主机信息</h2>
+                    </div>
+                    <div class="surface-card endpoint-card">
+                        <div class="endpoint-head">
+                            <span class="method-badge get">GET</span>
+                            <code class="endpoint-path">/api/control?action=get_agent&amp;agent_id=xxx</code>
+                            <a href="#ep-agent" class="endpoint-anchor"><i class="bi bi-link-45deg"></i></a>
+                        </div>
+                        <p class="endpoint-desc">根据主机 ID 获取单台主机的详细信息，返回格式与列表中单个 agent 一致。</p>
+
+                        <div class="sub-label params"><i class="bi bi-sliders"></i>参数说明</div>
+                        <div class="table-scroll">
+                            <table class="param-table">
+                                <thead>
+                                    <tr><th>参数</th><th>位置</th><th>类型</th><th>必填</th><th>说明</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>action</code></td><td>query</td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>固定值 <code>get_agent</code></td></tr>
+                                    <tr><td><code>agent_id</code></td><td>query</td><td><span class="type-pill">string</span></td><td class="req-yes">是</td><td>目标主机 ID</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="sub-label req"><i class="bi bi-arrow-up-right-circle"></i>请求示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label http"><span class="dot"></span>HTTP</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-http">GET /api/control?action=get_agent&amp;agent_id=xxx-xxx-xxx
+Authorization: Bearer YOUR_API_KEY</code></pre>
+                        </div>
+
+                        <div class="sub-label res"><i class="bi bi-arrow-down-left-circle"></i>响应示例</div>
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label json"><span class="dot"></span>JSON · 200</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-json">{
+  "agent_id": "xxx-xxx-xxx",
+  "hostname": "web-server-01",
+  "ip_address": "1.2.3.4",
+  "os_info": "Linux...",
+  "remark": "主服务器",
+  "status": 1,
+  "status_text": "在线",
+  "last_seen": "2026-08-16T07:25:28Z",
+  "created_at": "2026-08-16T07:25:28Z"
+}</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- curl 示例 -->
+                <section class="docs-section" id="curl">
+                    <div class="section-title-bar">
+                        <div class="bar-icon"><i class="bi bi-terminal-fill"></i></div>
+                        <h2>curl 示例</h2>
+                        <span class="bar-sub">可直接复制使用，请替换 YOUR_API_KEY 与域名</span>
+                    </div>
+                    <div class="surface-card endpoint-card">
+                        <div class="code-block">
+                            <div class="code-head">
+                                <span class="code-label bash"><span class="dot"></span>Bash · curl</span>
+                                <button class="copy-code-btn" type="button"><i class="bi bi-clipboard"></i> 复制</button>
+                            </div>
+                            <pre class="code-body"><code class="lang-bash"># 获取主机列表
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://remote-admin.pages.dev/api/control?action=list_agents"
+
+# 下发命令
+curl -X POST -H "Authorization: Bearer YOUR_API_KEY" \
+  -d "action=send_command&amp;agent_id=xxx&amp;command=uptime" \
+  "https://remote-admin.pages.dev/api/control"
+
+# 获取结果
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://remote-admin.pages.dev/api/control?action=get_result&amp;cmd_id=42"
+
+# 获取命令历史
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://remote-admin.pages.dev/api/control?action=get_history&amp;agent_id=xxx"
+
+# 获取单个主机信息
+curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://remote-admin.pages.dev/api/control?action=get_agent&amp;agent_id=xxx"</code></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <footer class="docs-footer">
+                    <i class="bi bi-shield-check"></i> 远控管理系统 API 文档 · 密钥请妥善保管，切勿泄露
+                </footer>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ============ API 密钥生成弹窗 ============ -->
+    <div class="modal fade" id="apiKeyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-key-fill"></i> API 密钥已生成</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert-soft alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>请立即妥善保存此密钥。出于安全考虑，密钥仅在此次完整显示一次。</span>
+                    </div>
+                    <div class="api-key-label">您的 API 密钥</div>
+                    <div class="api-key-display">
+                        <code id="apiKeyValue">-</code>
+                        <button class="btn-copy-key" id="copyKeyBtn" type="button">
+                            <i class="bi bi-clipboard"></i> 复制
+                        </button>
+                    </div>
+                    <div class="api-key-hint">在请求头中使用：<code>Authorization: Bearer &lt;api_key&gt;</code></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">我已保存，关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 返回顶部 -->
+    <button class="back-to-top" id="backToTop" type="button" title="返回顶部" aria-label="返回顶部">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+
+    <!-- ============ 脚本 ============ -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/assets/js/app.js"></script>
+    <script>
+        (function () {
+            'use strict';
+
+            /* ---------- 工具：HTML 转义 ---------- */
+            function esc(s) {
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+
+            /* ---------- 代码高亮 ---------- */
+            function highlightJson(code) {
+                return esc(code).replace(
+                    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+                    function (m) {
+                        var cls = 'tok-num';
+                        if (/^"/.test(m)) {
+                            cls = /:\s*$/.test(m) ? 'tok-key' : 'tok-str';
+                        } else if (/^(true|false)$/.test(m)) {
+                            cls = 'tok-bool';
+                        } else if (m === 'null') {
+                            cls = 'tok-null';
+                        }
+                        return '<span class="' + cls + '">' + m + '</span>';
+                    }
+                );
+            }
+
+            function highlightBash(code) {
+                return esc(code).split('\n').map(function (line) {
+                    var t = line.replace(/^\s+/, '');
+                    if (t.charAt(0) === '#') {
+                        return '<span class="bash-comment">' + line + '</span>';
+                    }
+                    return line
+                        .replace(/("[^"]*")/g, '<span class="bash-str">$1</span>')
+                        .replace(/(^|\s)(-H|-X|-d|-L|--data|--header|--request|-sSL|-sS)\b/g,
+                            '$1<span class="bash-flag">$2</span>');
+                }).join('\n');
+            }
+
+            function highlightHttp(code) {
+                return esc(code)
+                    .replace(/^(GET|POST|PUT|DELETE|PATCH)\b/gm, '<span class="http-method">$1</span>')
+                    .replace(/^([A-Za-z-]+):/gm, '<span class="http-head">$1</span>:');
+            }
+
+            function highlightAll() {
+                Array.prototype.forEach.call(
+                    document.querySelectorAll('code.lang-json'),
+                    function (el) { el.innerHTML = highlightJson(el.textContent); }
+                );
+                Array.prototype.forEach.call(
+                    document.querySelectorAll('code.lang-bash'),
+                    function (el) { el.innerHTML = highlightBash(el.textContent); }
+                );
+                Array.prototype.forEach.call(
+                    document.querySelectorAll('code.lang-http'),
+                    function (el) { el.innerHTML = highlightHttp(el.textContent); }
+                );
+            }
+
+            /* ---------- 复制按钮 ---------- */
+            function bindCopyButtons() {
+                Array.prototype.forEach.call(
+                    document.querySelectorAll('.copy-code-btn'),
+                    function (btn) {
+                        btn.addEventListener('click', function () {
+                            var block = btn.closest('.code-block');
+                            var pre = block && block.querySelector('pre');
+                            var text = pre ? pre.textContent : '';
+                            App.copyToClipboard(text, '已复制');
+                        });
+                    }
+                );
+
+                var baseBtn = document.getElementById('copyBaseUrlBtn');
+                if (baseBtn) {
+                    baseBtn.addEventListener('click', function () {
+                        var el = document.getElementById('baseUrl');
+                        App.copyToClipboard(el ? el.textContent : '', '基础地址已复制');
+                    });
+                }
+
+                var keyBtn = document.getElementById('copyKeyBtn');
+                if (keyBtn) {
+                    keyBtn.addEventListener('click', function () {
+                        var el = document.getElementById('apiKeyValue');
+                        App.copyToClipboard(el ? el.textContent : '', 'API 密钥已复制');
+                    });
+                }
+            }
+
+            /* ---------- 生成 API 密钥 ---------- */
+            function bindGenerateKey() {
+                var btn = document.getElementById('genKeyBtn');
+                if (!btn) return;
+                btn.addEventListener('click', async function () {
+                    var original = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-ring"></span> 生成中...';
+                    try {
+                        var data = await App.apiPost('/api/admin', { action: 'generate_api_key' });
+                        var key = data && (data.api_key || data.key || data.token) || '';
+                        if (key) {
+                            var valEl = document.getElementById('apiKeyValue');
+                            if (valEl) valEl.textContent = key;
+                            bootstrap.Modal.getOrCreateInstance(
+                                document.getElementById('apiKeyModal')
+                            ).show();
+                            App.showToast('API 密钥已生成', 'success');
+                        } else {
+                            App.showToast((data && data.error) ? data.error : '生成失败，请重试', 'error');
+                        }
+                    } catch (e) {
+                        App.showToast('网络错误，生成失败', 'error');
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = original;
+                    }
+                });
+            }
+
+            /* ---------- 返回顶部 ---------- */
+            function bindBackToTop() {
+                var btn = document.getElementById('backToTop');
+                if (!btn) return;
+                window.addEventListener('scroll', function () {
+                    if (window.scrollY > 420) btn.classList.add('show');
+                    else btn.classList.remove('show');
+                }, { passive: true });
+                btn.addEventListener('click', function () {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            }
+
+            /* ---------- 侧边栏 scrollspy ---------- */
+            function initScrollSpy() {
+                var links = Array.prototype.slice.call(
+                    document.querySelectorAll('.docs-nav-link')
+                );
+                var map = {};
+                links.forEach(function (l) {
+                    var href = l.getAttribute('href') || '';
+                    if (href.charAt(0) === '#') map[href.slice(1)] = l;
+                });
+                var sections = Object.keys(map)
+                    .map(function (id) { return document.getElementById(id); })
+                    .filter(Boolean);
+                if (!sections.length || !('IntersectionObserver' in window)) return;
+
+                var obs = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (en) {
+                        if (en.isIntersecting) {
+                            links.forEach(function (l) { l.classList.remove('active'); });
+                            var link = map[en.target.id];
+                            if (link) link.classList.add('active');
+                        }
+                    });
+                }, { rootMargin: '-80px 0px -70% 0px', threshold: 0 });
+                sections.forEach(function (s) { obs.observe(s); });
+            }
+
+            /* ---------- 初始化 ---------- */
+            async function init() {
+                // 1) 登录校验：通过 get_agents 确认（401 → 跳转首页）
+                try {
+                    var check = await fetch('/api/admin?action=get_agents', {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    if (check.status === 401) {
+                        window.location.href = '/';
+                        return;
+                    }
+                } catch (e) {
+                    /* 网络异常，继续尝试获取 CSRF */
+                }
+
+                // 2) 获取 CSRF 令牌（系统通过 /api/auth 下发，写入 meta 供 apiPost 使用）
+                var auth = await App.fetchAuth();
+                if (!auth.authenticated) {
+                    window.location.href = '/';
+                    return;
+                }
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                if (!meta) {
+                    meta = document.createElement('meta');
+                    meta.name = 'csrf-token';
+                    document.head.appendChild(meta);
+                }
+                meta.setAttribute('content', auth.csrf_token || '');
+
+                var userEl = document.getElementById('navUsername');
+                if (userEl) userEl.textContent = auth.username || 'admin';
+
+                // 3) 填充动态基础地址
+                var baseEl = document.getElementById('baseUrl');
+                if (baseEl && window.location.origin) {
+                    baseEl.textContent = window.location.origin;
+                }
+
+                // 4) 高亮代码 + 绑定交互
+                highlightAll();
+                bindCopyButtons();
+                bindGenerateKey();
+                bindBackToTop();
+                initScrollSpy();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+
+</body>
+
+</html>

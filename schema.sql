@@ -45,3 +45,10 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     attempted_at TEXT DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_login_ip ON login_attempts(ip, attempted_at);
+
+-- 系统设置表（存储 API Key 等配置）
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT DEFAULT (datetime('now'))
+);

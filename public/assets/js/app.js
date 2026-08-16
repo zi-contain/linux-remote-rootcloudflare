@@ -166,10 +166,21 @@
     }
 
     /* ---------- 时间格式化 ---------- */
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        // API 返回 UTC 时间（带 Z 后缀），需正确解析为 ISO 格式
+        if (typeof dateStr === 'string' && dateStr.endsWith('Z')) {
+            // "2026-08-16 07:25:28Z" → "2026-08-16T07:25:28Z" (ISO 8601 UTC)
+            return new Date(dateStr.replace(' ', 'T'));
+        }
+        // 兼容旧格式（无 Z 后缀，按本地时间解析）
+        return new Date(dateStr.replace(/-/g, '/'));
+    }
+
     function formatTime(dateStr) {
         if (!dateStr) return '-';
-        const d = new Date(dateStr.replace(/-/g, '/'));
-        if (isNaN(d.getTime())) return dateStr;
+        const d = parseDate(dateStr);
+        if (!d || isNaN(d.getTime())) return dateStr;
         return d.toLocaleString('zh-CN', {
             year: 'numeric', month: '2-digit', day: '2-digit',
             hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -178,8 +189,8 @@
 
     function timeAgo(dateStr) {
         if (!dateStr || dateStr === '从未') return '从未';
-        const d = new Date(dateStr.replace(/-/g, '/'));
-        if (isNaN(d.getTime())) return dateStr;
+        const d = parseDate(dateStr);
+        if (!d || isNaN(d.getTime())) return dateStr;
         const diff = Math.floor((Date.now() - d.getTime()) / 1000);
         if (diff < 5) return '刚刚';
         if (diff < 60) return diff + ' 秒前';

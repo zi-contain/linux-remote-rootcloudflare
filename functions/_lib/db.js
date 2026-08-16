@@ -20,9 +20,41 @@ export async function isInstalled(env) {
   }
 }
 
-/** 将超过 60 秒未心跳的 Agent 标记为离线 */
+/** 将超过 90 秒未心跳的 Agent 标记为离线（适配 25 秒连接周期 + 重连间隙） */
 export async function markOfflineAgents(env) {
   await env.DB.prepare(
-    "UPDATE agents SET status = 0 WHERE last_seen IS NOT NULL AND last_seen < datetime('now', '-60 seconds') AND status = 1"
+    "UPDATE agents SET status = 0 WHERE last_seen IS NOT NULL AND last_seen < datetime('now', '-90 seconds') AND status = 1"
   ).run();
+}
+
+/** 获取设置值 */
+export async function getSetting(env, key) {
+  try {
+    const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(key).first();
+    return row ? row.value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** 设置值 */
+export async function setSetting(env, key, value) {
+  await env.DB.prepare(
+    "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = datetime('now')"
+  ).bind(key, value, value).run();
+}
+
+/** 确保 settings 表存在（兼容旧部署） */
+export async function ensureSettingsTable(env) {
+  try {
+    await env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT DEFAULT (datetime('now'))
+      )`
+    ).run();
+  } catch {
+    // 忽略错误（表已存在）
+  }
 }
