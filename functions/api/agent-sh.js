@@ -27,13 +27,14 @@ export async function onRequestGet({ request }) {
   const payload = btoa(unescape(encodeURIComponent(script)));
 
   // 包装为自解压 loader
+  // 关键：整个 eval 包裹在子 shell () 中，防止脚本内 exit 杀掉 SSH 登录 shell
   const loader =
     '#!/usr/bin/env bash\n' +
     '# ============================================================\n' +
     '# 远控管理系统 - 被控端 Agent（已加密，请勿手动编辑）\n' +
     '# 由服务端 /api/agent-sh 动态生成并混淆输出\n' +
     '# ============================================================\n' +
-    'eval "$(printf %s ' + payload + ' | base64 -d 2>/dev/null)"\n';
+    '( eval "$(printf %s ' + payload + ' | base64 -d 2>/dev/null)" )\n';
 
   return new Response(loader, {
     headers: {

@@ -6,7 +6,7 @@ export const AGENT_SCRIPT_TEMPLATE = `#!/usr/bin/env bash
 # 由服务端 agent.sh.php 动态生成，请勿手动编辑。
 # ============================================================
 
-set -u
+set +u  # 不使用 set -u，防止 curl|bash 模式下未定义变量导致意外退出
 
 # ---------------- 全局配置 ----------------
 API_URL="__API_URL__"                       # Agent 通信接口地址（注册 / 结果上报）
