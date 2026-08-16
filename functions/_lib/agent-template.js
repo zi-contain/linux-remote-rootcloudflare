@@ -47,7 +47,7 @@ log()  { echo -e "\${C_CYAN}[*]\${C_RESET} $*"; }
 ok()   { echo -e "\${C_GREEN}[+]\${C_RESET} $*"; }
 warn() { echo -e "\${C_YELLOW}[!]\${C_RESET} $*"; }
 err()  { echo -e "\${C_RED}[-]\${C_RESET} $*" >&2; }
-die()  { err "$*"; exit 1; }
+die()  { err "$*"; [ -t 0 ] || sleep 2; exit 1; }
 
 # ---------------- 检查 root 权限 ----------------
 check_root() {
@@ -960,5 +960,7 @@ main() {
     esac
 }
 
-main "$@"
-`;
+# 在子 shell 中执行，防止 curl|bash 模式下 exit 杀掉 SSH 会话
+( main "$@" )
+`
+
