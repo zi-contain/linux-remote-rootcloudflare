@@ -7,5 +7,8 @@
   "scripts": {
     "dev": "npx wrangler pages dev public --d1 DB=remote-admin-db",
     "deploy": "npx wrangler pages deploy public"
+  },
+  "devDependencies": {
+    "wrangler": "^4.123.0"
   }
 }

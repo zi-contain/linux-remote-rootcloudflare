@@ -6,7 +6,7 @@ pages_build_output_dir = "public"
 [[d1_databases]]
 binding = "DB"
 database_name = "remote-admin-db"
-database_id = "在此填入你的D1数据库ID"
+database_id = "e5391ee2-c49d-45b8-82d1-38e4405c8230"
 
 # 环境变量（JWT 密钥）—— 生产环境请用 wrangler secret put JWT_SECRET 设置
 [vars]
