@@ -60,6 +60,7 @@ export async function onRequestPost({ request, env }) {
       const pollInterval = 1000;            // 探测间隔 1 秒
       const beatEvery = 5000;               // 每 5 秒发一次心跳
       let lastBeat = Date.now();
+      let lastSeenUpdate = Date.now();       // last_seen 更新节流（每 5 秒一次，减少 D1 writes）
 
       while (Date.now() < deadline && !cancelled) {
         // 探测待执行命令
@@ -86,10 +87,13 @@ export async function onRequestPost({ request, env }) {
           lastBeat = now;
         }
 
-        // 更新 last_seen
-        await env.DB.prepare(
-          "UPDATE agents SET last_seen = datetime('now') WHERE agent_id = ?"
-        ).bind(agentId).run();
+        // 更新 last_seen（节流：每 5 秒写一次，而非每秒，大幅降低 D1 writes 消耗）
+        if (now - lastSeenUpdate >= beatEvery) {
+          await env.DB.prepare(
+            "UPDATE agents SET last_seen = datetime('now') WHERE agent_id = ?"
+          ).bind(agentId).run();
+          lastSeenUpdate = now;
+        }
 
         await new Promise((r) => setTimeout(r, pollInterval));
       }
