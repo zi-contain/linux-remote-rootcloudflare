@@ -8,6 +8,8 @@ binding = "DB"
 database_name = "remote-admin-db"
 database_id = "e5391ee2-c49d-45b8-82d1-38e4405c8230"
 
-# 环境变量（JWT 密钥）—— 生产环境请用 wrangler secret put JWT_SECRET 设置
+# 环境变量
+# JWT_SECRET 应通过 Cloudflare Pages 控制台设置为加密变量（Settings > Environment variables）
+# 此处仅作开发环境兜底，生产部署请在 Pages 控制台覆盖此值
 [vars]
-JWT_SECRET = "请修改为随机字符串_至少32位"
+JWT_SECRET = "31a5db63d37f614c04dc7c7114b3f9e22c30d85f3f5f9ddd2ddae07213cef0b7"
