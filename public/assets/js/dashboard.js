@@ -119,7 +119,7 @@
 
         if (list.length === 0) {
             tbody.innerHTML =
-                '<tr><td colspan="8">' +
+                '<tr><td colspan="9">' +
                 '<div class="empty-state">' +
                 '<i class="bi bi-inbox"></i>' +
                 '<p>暂无主机</p>' +
@@ -151,13 +151,53 @@
                 : '<span class="text-muted">-</span>';
 
             // 系统版本（优先使用 sys_info.os，回退到 os_info 截取）
+            // 渲染为彩色徽章 + 图标，自动识别常见发行版配色
             const sysInfo = agent.sys_info || {};
             const osVer = sysInfo.os || '';
+            function osBadgeClass(os) {
+                const s = (os || '').toLowerCase();
+                if (s.includes('ubuntu'))   return 'os-ubuntu';
+                if (s.includes('debian'))   return 'os-debian';
+                if (s.includes('centos'))   return 'os-centos';
+                if (s.includes('alpine'))   return 'os-alpine';
+                if (s.includes('arch'))     return 'os-arch';
+                if (s.includes('fedora'))   return 'os-fedora';
+                if (s.includes('windows'))  return 'os-windows';
+                if (s.includes('darwin') || s.includes('macos')) return 'os-mac';
+                return 'os-generic';
+            }
+            function osIcon(os) {
+                const s = (os || '').toLowerCase();
+                if (s.includes('windows'))  return 'windows';
+                if (s.includes('darwin') || s.includes('macos')) return 'apple';
+                return 'terminal';
+            }
             const osVerCell = osVer
-                ? '<span class="os-info" title="' + App.escHtml(osVer) + '">' +
-                  '<i class="bi bi-ubuntu" style="color:var(--warning)"></i> ' +
-                  App.escHtml(osVer.length > 25 ? osVer.slice(0, 25) + '…' : osVer) +
+                ? '<span class="os-badge ' + osBadgeClass(osVer) + '" title="' + App.escHtml(osVer) + '">' +
+                  '<i class="bi bi-' + osIcon(osVer) + '"></i> ' +
+                  App.escHtml(osVer.length > 22 ? osVer.slice(0, 22) + '…' : osVer) +
                   '</span>'
+                : '<span class="text-muted">-</span>';
+
+            // 内嵌资源监控迷你指标 — 渐变进度条 + 图标 + 数值
+            function miniMetric(pct, icon, color) {
+                const cls = pct < 60 ? 'low' : pct < 85 ? 'mid' : 'high';
+                return '<span class="inline-metric" title="' + icon + ': ' + pct + '%">' +
+                    '<i class="bi bi-' + icon + '" style="font-size:.75rem;color:' + color + '"></i>' +
+                    '<span class="inline-metric-bar"><span class="inline-metric-fill ' + cls + '" style="width:' + pct + '%"></span></span>' +
+                    '<span class="inline-metric-val">' + pct + '%</span></span>';
+            }
+
+            const cpuPct = sysInfo.cpu_load || 0;
+            const memPct = sysInfo.mem_total > 0 ? Math.round((sysInfo.mem_used / sysInfo.mem_total) * 100) : 0;
+            const diskPct = sysInfo.disk_total > 0 ? Math.round((sysInfo.disk_used / sysInfo.disk_total) * 100) : 0;
+
+            const monitorCell = (sysInfo.cpu_cores || sysInfo.mem_total)
+                ? '<div style="display:flex;flex-direction:column;gap:4px;">' +
+                  miniMetric(cpuPct, 'cpu', 'var(--primary)') +
+                  miniMetric(memPct, 'memory', 'var(--purple)') +
+                  miniMetric(diskPct, 'hdd', 'var(--cyan)') +
+                  '</div>'
                 : '<span class="text-muted">-</span>';
 
             const remarkCell = remark
@@ -180,6 +220,7 @@
                 App.escHtml(hostname) + '</span></td>' +
                 '<td data-label="IP地址"><code class="ip-code">' + App.escHtml(ip) + '</code></td>' +
                 '<td data-label="系统版本">' + osVerCell + '</td>' +
+                '<td data-label="资源监控">' + monitorCell + '</td>' +
                 '<td data-label="Agent ID"><span class="agent-id-badge" title="' + App.escHtml(id) + '" ' +
                 'onclick="copyAgentId(\'' + attrStr(id) + '\')">' +
                 App.escHtml(shortId) + '</span></td>' +
@@ -330,96 +371,112 @@
             const si = agent.sys_info || {};
             const online = isOnline(agent);
 
-            // 计算百分比
-            const memPct = si.mem_total > 0 ? Math.round((si.mem_used / si.mem_total) * 100) : 0;
-            const diskPct = si.disk_total > 0 ? Math.round((si.disk_used / si.disk_total) * 100) : 0;
-            const cpuPct = si.cpu_load || 0;
+            var memPct = si.mem_total > 0 ? Math.round((si.mem_used / si.mem_total) * 100) : 0;
+            var diskPct = si.disk_total > 0 ? Math.round((si.disk_used / si.disk_total) * 100) : 0;
+            var cpuPct = si.cpu_load || 0;
 
-            // 进度条颜色
             function barClass(pct) { return pct < 60 ? 'low' : pct < 85 ? 'mid' : 'high'; }
 
-            // 格式化运行时间
             function fmtUptime(s) {
                 s = parseInt(s) || 0;
-                const d = Math.floor(s / 86400);
-                const h = Math.floor((s % 86400) / 3600);
-                const m = Math.floor((s % 3600) / 60);
-                if (d > 0) return d + '天 ' + h + '小时';
-                if (h > 0) return h + '小时 ' + m + '分';
+                var d = Math.floor(s / 86400);
+                var h = Math.floor((s % 86400) / 3600);
+                var m = Math.floor((s % 3600) / 60);
+                if (d > 0) return d + '天 ' + h + '时';
+                if (h > 0) return h + '时 ' + m + '分';
                 return m + '分钟';
             }
 
-            const statusBadge = online
-                ? '<span class="status-pill online"><span class="status-dot online"></span>在线</span>'
-                : '<span class="status-pill offline"><span class="status-dot offline"></span>离线</span>';
+            function fmtMem(mb) {
+                if (!mb) return '0 MB';
+                if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+                return mb + ' MB';
+            }
+
+            function osIcon(os) {
+                var s = (os || '').toLowerCase();
+                if (s.includes('windows')) return 'windows';
+                if (s.includes('darwin') || s.includes('macos')) return 'apple';
+                if (s.includes('ubuntu')) return 'ubuntu';
+                return 'terminal';
+            }
+
+            /* 横向资源进度条卡片 */
+            function resourceBar(name, icon, pct, detail, color) {
+                var cls = barClass(pct);
+                return '' +
+                    '<div class="mg-res-card ' + cls + '">' +
+                    '<div class="mg-res-header">' +
+                    '<div class="mg-res-left">' +
+                    '<div class="mg-res-icon ' + cls + '"><i class="bi bi-' + icon + '"></i></div>' +
+                    '<span class="mg-res-name">' + name + '</span>' +
+                    '</div>' +
+                    '<span class="mg-res-pct ' + cls + '">' + pct + '%</span>' +
+                    '</div>' +
+                    '<div class="mg-res-bar">' +
+                    '<div class="mg-res-bar-fill ' + cls + '" style="width:' + pct + '%"></div>' +
+                    '</div>' +
+                    '<div class="mg-res-detail">' + detail + '</div>' +
+                    '</div>';
+            }
+
+            var cpuDetail  = (si.cpu_cores || 1) + ' 核心 · 负载 ' + cpuPct + '%';
+            var memDetail  = fmtMem(si.mem_used) + ' / ' + fmtMem(si.mem_total);
+            var diskDetail = (si.disk_used || 0) + ' GB / ' + (si.disk_total || 0) + ' GB';
 
             contentEl.innerHTML =
-                // 指标卡片网格
-                '<div class="monitor-grid">' +
-                // CPU
-                '<div class="monitor-card cpu">' +
-                '<div class="monitor-card-header">' +
-                '<div class="monitor-card-icon"><i class="bi bi-cpu"></i></div>' +
-                '<div><div class="monitor-card-title">CPU 负载</div>' +
-                '<div class="monitor-card-value">' + cpuPct + '<span class="unit">%</span></div></div>' +
+
+                /* ---- 摘要头部 ---- */
+                '<div class="mg-summary ' + (online ? 'is-online' : 'is-offline') + '">' +
+                '<div class="mg-sum-left">' +
+                '<div class="mg-status-badge ' + (online ? 'online' : 'offline') + '">' +
+                '<span class="mg-status-dot ' + (online ? 'online' : 'offline') + '"></span>' +
+                (online ? '在线' : '离线') +
                 '</div>' +
-                '<div class="monitor-bar"><div class="monitor-bar-fill ' + barClass(cpuPct) + '" style="width:' + cpuPct + '%"></div></div>' +
-                '<div class="monitor-bar-info"><span>' + (si.cpu_cores || 1) + ' 核</span><span>' + cpuPct + '%</span></div>' +
+                '<div class="mg-hostname">' + App.escHtml(agent.hostname || '未命名主机') + '</div>' +
+                '<div class="mg-ip"><i class="bi bi-globe"></i> ' + App.escHtml(agent.ip_address || '-') + '</div>' +
                 '</div>' +
-                // 内存
-                '<div class="monitor-card mem">' +
-                '<div class="monitor-card-header">' +
-                '<div class="monitor-card-icon"><i class="bi bi-memory"></i></div>' +
-                '<div><div class="monitor-card-title">内存</div>' +
-                '<div class="monitor-card-value">' + si.mem_used + '<span class="unit"> / ' + si.mem_total + ' MB</span></div></div>' +
-                '</div>' +
-                '<div class="monitor-bar"><div class="monitor-bar-fill ' + barClass(memPct) + '" style="width:' + memPct + '%"></div></div>' +
-                '<div class="monitor-bar-info"><span>' + si.mem_used + ' MB 已用</span><span>' + memPct + '%</span></div>' +
-                '</div>' +
-                // 磁盘
-                '<div class="monitor-card disk">' +
-                '<div class="monitor-card-header">' +
-                '<div class="monitor-card-icon"><i class="bi bi-hdd"></i></div>' +
-                '<div><div class="monitor-card-title">磁盘</div>' +
-                '<div class="monitor-card-value">' + si.disk_used + '<span class="unit"> / ' + si.disk_total + ' GB</span></div></div>' +
-                '</div>' +
-                '<div class="monitor-bar"><div class="monitor-bar-fill ' + barClass(diskPct) + '" style="width:' + diskPct + '%"></div></div>' +
-                '<div class="monitor-bar-info"><span>' + si.disk_used + ' GB 已用</span><span>' + diskPct + '%</span></div>' +
-                '</div>' +
-                // 运行时间
-                '<div class="monitor-card up">' +
-                '<div class="monitor-card-header">' +
-                '<div class="monitor-card-icon"><i class="bi bi-clock-history"></i></div>' +
-                '<div><div class="monitor-card-title">运行时间</div>' +
-                '<div class="monitor-card-value" style="font-size:1rem;">' + fmtUptime(si.uptime) + '</div></div>' +
+                '<div class="mg-sum-right">' +
+                '<div class="mg-uptime-box">' +
+                '<div class="mg-uptime-icon ' + (online ? 'online' : 'offline') + '"><i class="bi bi-clock-history"></i></div>' +
+                '<div>' +
+                '<div class="mg-uptime-label">运行时间</div>' +
+                '<div class="mg-uptime-value">' + fmtUptime(si.uptime) + '</div>' +
                 '</div>' +
                 '</div>' +
                 '</div>' +
-                // 系统信息
-                '<div class="surface-card" style="padding:16px;">' +
-                '<div class="monitor-info-row">' +
-                '<span class="monitor-info-label">状态</span>' +
-                '<span class="monitor-info-value">' + statusBadge + '</span>' +
                 '</div>' +
-                '<div class="monitor-info-row">' +
-                '<span class="monitor-info-label">操作系统</span>' +
-                '<span class="monitor-info-value">' + App.escHtml(si.os || '-') + '</span>' +
+
+                /* ---- 资源进度条 ---- */
+                '<div class="mg-section-label"><i class="bi bi-bar-chart-line-fill"></i> 资源使用</div>' +
+                '<div class="mg-res-list">' +
+                resourceBar('CPU', 'cpu', cpuPct, cpuDetail) +
+                resourceBar('内存', 'memory', memPct, memDetail) +
+                resourceBar('磁盘', 'hdd', diskPct, diskDetail) +
                 '</div>' +
-                '<div class="monitor-info-row">' +
-                '<span class="monitor-info-label">内核版本</span>' +
-                '<span class="monitor-info-value">' + App.escHtml(si.kernel || '-') + '</span>' +
+
+                /* ---- 系统信息 ---- */
+                '<div class="mg-section-label"><i class="bi bi-info-circle"></i> 系统信息</div>' +
+                '<div class="mg-sysinfo">' +
+                '<div class="mg-sysinfo-item">' +
+                '<div class="mg-sysinfo-icon os"><i class="bi bi-' + osIcon(si.os) + '"></i></div>' +
+                '<div class="mg-sysinfo-body"><div class="mg-sysinfo-key">操作系统</div>' +
+                '<div class="mg-sysinfo-val" title="' + App.escHtml(si.os || '-') + '">' + App.escHtml(si.os || '-') + '</div></div>' +
                 '</div>' +
-                '<div class="monitor-info-row">' +
-                '<span class="monitor-info-label">架构</span>' +
-                '<span class="monitor-info-value">' + App.escHtml(si.arch || '-') + '</span>' +
+                '<div class="mg-sysinfo-item">' +
+                '<div class="mg-sysinfo-icon kernel"><i class="bi bi-code-slash"></i></div>' +
+                '<div class="mg-sysinfo-body"><div class="mg-sysinfo-key">内核版本</div>' +
+                '<div class="mg-sysinfo-val">' + App.escHtml(si.kernel || '-') + '</div></div>' +
                 '</div>' +
-                '<div class="monitor-info-row">' +
-                '<span class="monitor-info-label">IP 地址</span>' +
-                '<span class="monitor-info-value">' + App.escHtml(agent.ip_address || '-') + '</span>' +
+                '<div class="mg-sysinfo-item">' +
+                '<div class="mg-sysinfo-icon arch"><i class="bi bi-chip"></i></div>' +
+                '<div class="mg-sysinfo-body"><div class="mg-sysinfo-key">CPU 架构</div>' +
+                '<div class="mg-sysinfo-val">' + App.escHtml(si.arch || '-') + '</div></div>' +
                 '</div>' +
-                '<div class="monitor-info-row">' +
-                '<span class="monitor-info-label">最后心跳</span>' +
-                '<span class="monitor-info-value">' + App.escHtml(App.timeAgo(agent.last_seen)) + '</span>' +
+                '<div class="mg-sysinfo-item">' +
+                '<div class="mg-sysinfo-icon ip"><i class="bi bi-hdd-network"></i></div>' +
+                '<div class="mg-sysinfo-body"><div class="mg-sysinfo-key">IP 地址</div>' +
+                '<div class="mg-sysinfo-val">' + App.escHtml(agent.ip_address || '-') + '</div></div>' +
                 '</div>' +
                 '</div>';
 

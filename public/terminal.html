@@ -49,7 +49,7 @@
 
     <!-- 系统监控条 -->
     <div class="sys-monitor-bar" id="sysMonitorBar">
-        <div class="sys-metric">
+        <div class="sys-metric sys-metric-gauge">
             <div class="sys-metric-icon cpu"><i class="bi bi-cpu"></i></div>
             <div class="sys-metric-body">
                 <div class="sys-metric-label">CPU</div>
@@ -57,7 +57,7 @@
             </div>
             <div class="sys-mini-bar"><div class="sys-mini-bar-fill" id="sysCpuBar" style="width:0%"></div></div>
         </div>
-        <div class="sys-metric">
+        <div class="sys-metric sys-metric-gauge">
             <div class="sys-metric-icon mem"><i class="bi bi-memory"></i></div>
             <div class="sys-metric-body">
                 <div class="sys-metric-label">内存</div>
@@ -65,7 +65,7 @@
             </div>
             <div class="sys-mini-bar"><div class="sys-mini-bar-fill" id="sysMemBar" style="width:0%"></div></div>
         </div>
-        <div class="sys-metric">
+        <div class="sys-metric sys-metric-gauge">
             <div class="sys-metric-icon disk"><i class="bi bi-hdd"></i></div>
             <div class="sys-metric-body">
                 <div class="sys-metric-label">磁盘</div>
@@ -73,18 +73,18 @@
             </div>
             <div class="sys-mini-bar"><div class="sys-mini-bar-fill" id="sysDiskBar" style="width:0%"></div></div>
         </div>
-        <div class="sys-metric">
+        <div class="sys-metric sys-metric-info">
             <div class="sys-metric-icon os"><i class="bi bi-info-circle"></i></div>
             <div class="sys-metric-body">
                 <div class="sys-metric-label">系统</div>
-                <div class="sys-metric-value" id="sysOs">-</div>
+                <div class="sys-metric-value sys-metric-text" id="sysOs">-</div>
             </div>
         </div>
-        <div class="sys-metric">
+        <div class="sys-metric sys-metric-info">
             <div class="sys-metric-icon up"><i class="bi bi-clock-history"></i></div>
             <div class="sys-metric-body">
                 <div class="sys-metric-label">运行</div>
-                <div class="sys-metric-value" id="sysUptime">-</div>
+                <div class="sys-metric-value sys-metric-text" id="sysUptime">-</div>
             </div>
         </div>
     </div>
