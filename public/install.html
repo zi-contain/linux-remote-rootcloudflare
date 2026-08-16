@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>远控管理系统 - 安装向导</title>
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons 1.11 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- 自定义样式 -->
+    <link href="assets/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-wrap">
+        <div class="auth-card wide">
+            <!-- Logo 区 -->
+            <div class="auth-logo">
+                <div class="logo-icon btn-gradient"><i class="bi bi-terminal-fill"></i></div>
+                <h1>远控管理系统</h1>
+                <small>安装向导</small>
+            </div>
+
+            <!-- 安装成功提示（默认隐藏） -->
+            <div id="installSuccess" style="display:none;">
+                <div class="alert-soft alert-success mb-3">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>安装成功！请前往登录页面。</span>
+                </div>
+                <a href="/" class="btn-gradient w-100 d-block text-center">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> 前往登录
+                </a>
+            </div>
+
+            <!-- 安装表单 -->
+            <div id="installForm">
+                <!-- 错误提示 -->
+                <div id="installErrors" class="alert-soft alert-danger mb-3" style="display:none;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div id="installErrorList"></div>
+                </div>
+
+                <form id="installFormEl" autocomplete="off">
+                    <!-- 管理员账户 -->
+                    <h6 class="text-2 mb-3"><i class="bi bi-person-shield me-1"></i>管理员账户</h6>
+                    <div class="mb-3">
+                        <label class="form-label text-2 small" for="adminUser">管理员用户名</label>
+                        <input type="text" class="form-control-dark form-control" id="adminUser" name="adminUser"
+                               placeholder="至少 3 个字符" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-2 small" for="adminPass">管理员密码</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control-dark form-control" id="adminPass" name="adminPass"
+                                   placeholder="至少 6 个字符" required>
+                            <button class="pwd-toggle" type="button" onclick="togglePwd('adminPass', this)" aria-label="显示密码">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-2 small" for="adminPass2">确认管理员密码</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control-dark form-control" id="adminPass2" name="adminPass2"
+                                   placeholder="再次输入密码" required>
+                            <button class="pwd-toggle" type="button" onclick="togglePwd('adminPass2', this)" aria-label="显示密码">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 提交按钮 -->
+                    <button type="submit" class="btn-success-grad w-100" id="installBtn">
+                        <i class="bi bi-check2-circle me-1"></i> 开始安装
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 公共脚本 -->
+    <script src="assets/js/app.js"></script>
+    <script>
+        function togglePwd(fieldId, btn) {
+            var input = document.getElementById(fieldId);
+            var icon  = btn.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'bi bi-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'bi bi-eye';
+            }
+        }
+
+        // 页面加载时检查安装状态
+        (async function() {
+            try {
+                const res = await fetch('/api/install', { headers: { 'Accept': 'application/json' } });
+                const data = await res.json();
+                if (data.installed) {
+                    // 已安装，跳转登录
+                    window.location.href = '/';
+                }
+            } catch (e) {
+                // 忽略错误
+            }
+        })();
+
+        // 表单提交
+        document.getElementById('installFormEl').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const adminUser = document.getElementById('adminUser').value;
+            const adminPass = document.getElementById('adminPass').value;
+            const adminPass2 = document.getElementById('adminPass2').value;
+            const errorDiv = document.getElementById('installErrors');
+            const errorList = document.getElementById('installErrorList');
+            const btn = document.getElementById('installBtn');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 安装中...';
+            errorDiv.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('adminUser', adminUser);
+                formData.append('adminPass', adminPass);
+                formData.append('adminPass2', adminPass2);
+
+                const res = await fetch('/api/install', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('installForm').style.display = 'none';
+                    document.getElementById('installSuccess').style.display = 'block';
+                } else {
+                    const errors = data.errors || [data.error || '安装失败'];
+                    errorList.innerHTML = errors.map(e => '<div>' + e + '</div>').join('');
+                    errorDiv.style.display = 'flex';
+                }
+            } catch (err) {
+                errorList.innerHTML = '<div>网络错误，请重试</div>';
+                errorDiv.style.display = 'flex';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> 开始安装';
+            }
+        });
+    </script>
+</body>
+</html>

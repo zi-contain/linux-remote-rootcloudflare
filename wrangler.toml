@@ -1,0 +1,13 @@
+name = "remote-admin"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "public"
+
+# D1 数据库绑定 —— 部署时替换 database_id 为你的实际 ID
+[[d1_databases]]
+binding = "DB"
+database_name = "remote-admin-db"
+database_id = "在此填入你的D1数据库ID"
+
+# 环境变量（JWT 密钥）—— 生产环境请用 wrangler secret put JWT_SECRET 设置
+[vars]
+JWT_SECRET = "请修改为随机字符串_至少32位"

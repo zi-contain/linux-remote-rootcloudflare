@@ -1,0 +1,11 @@
+{
+  "name": "remote-admin-cf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "远控管理系统 - Cloudflare Pages + D1 版本",
+  "scripts": {
+    "dev": "npx wrangler pages dev public --d1 DB=remote-admin-db",
+    "deploy": "npx wrangler pages deploy public"
+  }
+}

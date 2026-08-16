@@ -1,0 +1,3 @@
+# CF Pages 重定向规则
+# 确保 / 自动指向 index.html（CF Pages 默认行为，此处显式声明）
+/              /index.html     200

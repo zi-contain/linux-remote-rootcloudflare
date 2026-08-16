@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>终端 - 远控管理系统</title>
+
+    <!-- Bootstrap 5.3 + Bootstrap Icons 1.11 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- 设计系统与终端专用样式 -->
+    <link href="assets/css/style.css" rel="stylesheet">
+    <link href="assets/css/terminal.css" rel="stylesheet">
+</head>
+<body class="terminal-body">
+
+    <!-- 顶部导航条 -->
+    <header class="terminal-nav">
+        <div class="nav-left">
+            <a href="dashboard.html" class="btn-back" title="返回控制台">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div class="terminal-title">
+                <i class="bi bi-terminal-fill"></i>
+                <span>host</span>
+            </div>
+            <div class="conn-status">
+                <span class="status-dot offline" id="connDot"></span>
+                <small id="connText">检测中</small>
+            </div>
+        </div>
+        <div class="nav-right">
+            <button class="btn-icon" id="btnHistory" title="历史" onclick="loadHistory()">
+                <i class="bi bi-clock-history"></i>
+            </button>
+            <button class="btn-icon" id="btnClear" title="清屏" onclick="clearTerminal()">
+                <i class="bi bi-eraser"></i>
+            </button>
+            <button class="btn-icon" id="btnCopy" title="复制全部输出" onclick="copyAllOutput()">
+                <i class="bi bi-clipboard-check"></i>
+            </button>
+            <button class="btn-icon" id="btnFullscreen" title="全屏" onclick="toggleFullscreen()">
+                <i class="bi bi-arrows-fullscreen"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 终端主体（滚动容器） -->
+    <main class="terminal-window" id="terminalWindow">
+        <div class="terminal-output" id="terminalOutput">
+            <div class="terminal-line terminal-info">════════════════════════════════════════════════════════════</div>
+            <div class="terminal-line terminal-info">        远控管理系统 - 远程终端</div>
+            <div class="terminal-line terminal-info">        目标主机: host</div>
+            <div class="terminal-line terminal-info">        Agent ID: ...</div>
+            <div class="terminal-line terminal-info">════════════════════════════════════════════════════════════</div>
+            <div class="terminal-line terminal-hint">输入命令并按回车执行，↑↓ 浏览历史，Ctrl+L 清屏</div>
+            <div class="terminal-line">&nbsp;</div>
+        </div>
+
+        <!-- 输入行（吸底） -->
+        <div class="terminal-input-line">
+            <span class="terminal-prompt" id="terminalPrompt">root@host:~#</span>
+            <input type="text" class="terminal-input" id="terminalInput"
+                   placeholder="输入命令..." autocomplete="off" autofocus spellcheck="false">
+        </div>
+    </main>
+
+    <!-- 快捷命令条 -->
+    <div class="quick-cmds">
+        <button class="quick-cmd" onclick="quickCmd('top')">top</button>
+        <button class="quick-cmd" onclick="quickCmd('df -h')">df -h</button>
+        <button class="quick-cmd" onclick="quickCmd('free -m')">free -m</button>
+        <button class="quick-cmd" onclick="quickCmd('uname -a')">uname -a</button>
+        <button class="quick-cmd" onclick="quickCmd('who')">who</button>
+        <button class="quick-cmd" onclick="quickCmd('uptime')">uptime</button>
+        <button class="quick-cmd" onclick="quickCmd('ps aux')">ps aux</button>
+        <button class="quick-cmd" onclick="quickCmd('ip a')">ip a</button>
+    </div>
+
+    <!-- 命令历史弹窗 -->
+    <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content modal-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-clock-history"></i> 命令历史</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="historyList" style="max-height:60vh;overflow-y:auto;">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/terminal.js"></script>
+</body>
+</html>
