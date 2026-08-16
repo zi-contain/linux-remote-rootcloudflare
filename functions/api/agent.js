@@ -11,7 +11,7 @@
  */
 
 import { textResponse, getClientIp, b64encode, b64decode, randomHex } from '../_lib/helpers.js';
-import { isInstalled, ensureAgentTokenColumn } from '../_lib/db.js';
+import { isInstalled, ensureAgentTokenColumn, ensureSysInfoColumns } from '../_lib/db.js';
 import { constantTimeEqual } from '../_lib/auth.js';
 
 /** 恒定时间验证 Agent 令牌 */
@@ -39,6 +39,8 @@ async function handleRequest(context) {
 
   // 确保 token 列存在（兼容旧部署）
   await ensureAgentTokenColumn(env);
+  // 确保系统信息列存在（兼容旧部署）
+  await ensureSysInfoColumns(env);
 
   const formData = await request.formData();
   const action = formData.get('action') || '';
@@ -131,14 +133,29 @@ async function checkin(env, formData, request) {
     return textResponse('ERROR:agent不存在');
   }
 
-  // 更新心跳
+  // 更新心跳与系统信息
+  const sysFields = ['sys_os', 'sys_kernel', 'sys_arch', 'sys_uptime',
+    'sys_mem_total', 'sys_mem_used', 'sys_disk_total', 'sys_disk_used',
+    'sys_cpu_load', 'sys_cpu_cores'];
+  const sysValues = sysFields.map(f => formData.get(f) || '');
   await env.DB.prepare(
     `UPDATE agents
      SET status = 1, last_seen = datetime('now'),
          hostname = CASE WHEN ? = '' THEN hostname ELSE ? END,
-         ip_address = CASE WHEN ? = '' THEN ip_address ELSE ? END
+         ip_address = CASE WHEN ? = '' THEN ip_address ELSE ? END,
+         sys_os = ?, sys_kernel = ?, sys_arch = ?,
+         sys_uptime = ?, sys_mem_total = ?, sys_mem_used = ?,
+         sys_disk_total = ?, sys_disk_used = ?,
+         sys_cpu_load = ?, sys_cpu_cores = ?
      WHERE agent_id = ?`
-  ).bind(hostname, hostname, ip, ip, agentId).run();
+  ).bind(
+    hostname, hostname, ip, ip,
+    sysValues[0], sysValues[1], sysValues[2],
+    sysValues[3] || 0, sysValues[4] || 0, sysValues[5] || 0,
+    sysValues[6] || 0, sysValues[7] || 0,
+    sysValues[8] || 0, sysValues[9] || 1,
+    agentId
+  ).run();
 
   // 长轮询：最多等待 10 秒
   const longPoll = 10; // 秒

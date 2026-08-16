@@ -110,11 +110,11 @@
                             <th>状态</th>
                             <th>主机名</th>
                             <th>IP地址</th>
-                            <th>系统信息</th>
+                            <th>系统版本</th>
                             <th>Agent ID</th>
                             <th>备注</th>
                             <th>最后在线</th>
-                            <th style="width:200px;">操作</th>
+                            <th style="width:240px;">操作</th>
                         </tr>
                     </thead>
                     <tbody id="agentList">
@@ -176,6 +176,34 @@
                     <button type="button" class="btn btn-danger" onclick="confirmDelete()">
                         <i class="bi bi-trash"></i> 确认删除
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 监控弹窗 ============ -->
+    <div class="modal fade monitor-modal" id="monitorModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content modal-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-speedometer2"></i>
+                        系统监控 - <span id="monitorHostname">主机</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="monitorContent">
+                        <div class="text-center text-muted py-4">
+                            <span class="spinner-ring"></span> 加载中...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-soft btn-sm" id="monitorRefreshBtn">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">关闭</button>
                 </div>
             </div>
         </div>

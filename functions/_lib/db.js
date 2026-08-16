@@ -71,3 +71,31 @@ export async function ensureAgentTokenColumn(env) {
     }
   }
 }
+
+/** 确保 agents 表有系统信息列（兼容旧部署） */
+export async function ensureSysInfoColumns(env) {
+  const columns = [
+    'sys_os TEXT',
+    'sys_kernel TEXT',
+    'sys_arch TEXT',
+    'sys_uptime INTEGER DEFAULT 0',
+    'sys_mem_total INTEGER DEFAULT 0',
+    'sys_mem_used INTEGER DEFAULT 0',
+    'sys_disk_total INTEGER DEFAULT 0',
+    'sys_disk_used INTEGER DEFAULT 0',
+    'sys_cpu_load INTEGER DEFAULT 0',
+    'sys_cpu_cores INTEGER DEFAULT 1',
+  ];
+  for (const colDef of columns) {
+    const colName = colDef.split(' ')[0];
+    try {
+      await env.DB.prepare(`SELECT ${colName} FROM agents LIMIT 1`).first();
+    } catch {
+      try {
+        await env.DB.prepare(`ALTER TABLE agents ADD COLUMN ${colDef}`).run();
+      } catch {
+        // 列已存在或其他错误
+      }
+    }
+  }
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#0d1117">
+    <meta name="theme-color" content="#f0f2f7">
     <title>终端 - 远控管理系统</title>
 
     <!-- Bootstrap 5.3 + Bootstrap Icons 1.11 -->
@@ -46,6 +46,48 @@
             </button>
         </div>
     </header>
+
+    <!-- 系统监控条 -->
+    <div class="sys-monitor-bar" id="sysMonitorBar">
+        <div class="sys-metric">
+            <div class="sys-metric-icon cpu"><i class="bi bi-cpu"></i></div>
+            <div class="sys-metric-body">
+                <div class="sys-metric-label">CPU</div>
+                <div class="sys-metric-value" id="sysCpu">-<span class="unit">%</span></div>
+            </div>
+            <div class="sys-mini-bar"><div class="sys-mini-bar-fill" id="sysCpuBar" style="width:0%"></div></div>
+        </div>
+        <div class="sys-metric">
+            <div class="sys-metric-icon mem"><i class="bi bi-memory"></i></div>
+            <div class="sys-metric-body">
+                <div class="sys-metric-label">内存</div>
+                <div class="sys-metric-value" id="sysMem">-<span class="unit">MB</span></div>
+            </div>
+            <div class="sys-mini-bar"><div class="sys-mini-bar-fill" id="sysMemBar" style="width:0%"></div></div>
+        </div>
+        <div class="sys-metric">
+            <div class="sys-metric-icon disk"><i class="bi bi-hdd"></i></div>
+            <div class="sys-metric-body">
+                <div class="sys-metric-label">磁盘</div>
+                <div class="sys-metric-value" id="sysDisk">-<span class="unit">GB</span></div>
+            </div>
+            <div class="sys-mini-bar"><div class="sys-mini-bar-fill" id="sysDiskBar" style="width:0%"></div></div>
+        </div>
+        <div class="sys-metric">
+            <div class="sys-metric-icon os"><i class="bi bi-info-circle"></i></div>
+            <div class="sys-metric-body">
+                <div class="sys-metric-label">系统</div>
+                <div class="sys-metric-value" id="sysOs">-</div>
+            </div>
+        </div>
+        <div class="sys-metric">
+            <div class="sys-metric-icon up"><i class="bi bi-clock-history"></i></div>
+            <div class="sys-metric-body">
+                <div class="sys-metric-label">运行</div>
+                <div class="sys-metric-value" id="sysUptime">-</div>
+            </div>
+        </div>
+    </div>
 
     <!-- 终端主体（滚动容器） -->
     <main class="terminal-window" id="terminalWindow">

@@ -150,6 +150,16 @@
                   '</span>'
                 : '<span class="text-muted">-</span>';
 
+            // 系统版本（优先使用 sys_info.os，回退到 os_info 截取）
+            const sysInfo = agent.sys_info || {};
+            const osVer = sysInfo.os || '';
+            const osVerCell = osVer
+                ? '<span class="os-info" title="' + App.escHtml(osVer) + '">' +
+                  '<i class="bi bi-ubuntu" style="color:var(--warning)"></i> ' +
+                  App.escHtml(osVer.length > 25 ? osVer.slice(0, 25) + '…' : osVer) +
+                  '</span>'
+                : '<span class="text-muted">-</span>';
+
             const remarkCell = remark
                 ? App.escHtml(remark)
                 : '<span class="text-muted">无</span>';
@@ -169,7 +179,7 @@
                 '<td data-label="主机名"><span class="host-name"><i class="bi bi-pc-display"></i>' +
                 App.escHtml(hostname) + '</span></td>' +
                 '<td data-label="IP地址"><code class="ip-code">' + App.escHtml(ip) + '</code></td>' +
-                '<td data-label="系统信息">' + osCell + '</td>' +
+                '<td data-label="系统版本">' + osVerCell + '</td>' +
                 '<td data-label="Agent ID"><span class="agent-id-badge" title="' + App.escHtml(id) + '" ' +
                 'onclick="copyAgentId(\'' + attrStr(id) + '\')">' +
                 App.escHtml(shortId) + '</span></td>' +
@@ -178,6 +188,9 @@
                 App.escHtml(agoText) + '</small></td>' +
                 '<td data-label="操作"><div class="row-actions">' +
                 '<a class="btn-terminal" href="' + termHref + '"><i class="bi bi-terminal"></i> 终端</a>' +
+                '<button class="btn-icon" title="系统监控" ' +
+                'onclick="showMonitor(\'' + attrStr(id) + '\',\'' + attrStr(hostname) + '\')">' +
+                '<i class="bi bi-speedometer2"></i></button>' +
                 '<button class="btn-icon edit" title="编辑备注" ' +
                 'onclick="editRemark(\'' + attrStr(id) + '\',\'' + attrStr(remark) + '\')">' +
                 '<i class="bi bi-pencil"></i></button>' +
@@ -285,12 +298,143 @@
         }
     }
 
+    /* ---------- 系统监控弹窗 ---------- */
+    let monitorAgentId = null;
+
+    function showMonitor(id, hostname) {
+        monitorAgentId = id;
+        const titleEl = document.getElementById('monitorHostname');
+        if (titleEl) titleEl.textContent = hostname || '主机';
+        bootstrap.Modal.getOrCreateInstance(
+            document.getElementById('monitorModal')
+        ).show();
+        loadMonitorData();
+    }
+
+    async function loadMonitorData() {
+        const contentEl = document.getElementById('monitorContent');
+        if (!contentEl || !monitorAgentId) return;
+
+        contentEl.innerHTML = '<div class="text-center text-muted py-4"><span class="spinner-ring"></span> 加载中...</div>';
+
+        try {
+            const data = await App.apiGet(API, { action: 'get_agents' });
+            const agents = (data && Array.isArray(data.agents)) ? data.agents : [];
+            const agent = agents.find(function (a) { return a.agent_id === monitorAgentId; });
+
+            if (!agent) {
+                contentEl.innerHTML = '<div class="empty-state"><i class="bi bi-x-octagon"></i><p>主机不存在</p></div>';
+                return;
+            }
+
+            const si = agent.sys_info || {};
+            const online = isOnline(agent);
+
+            // 计算百分比
+            const memPct = si.mem_total > 0 ? Math.round((si.mem_used / si.mem_total) * 100) : 0;
+            const diskPct = si.disk_total > 0 ? Math.round((si.disk_used / si.disk_total) * 100) : 0;
+            const cpuPct = si.cpu_load || 0;
+
+            // 进度条颜色
+            function barClass(pct) { return pct < 60 ? 'low' : pct < 85 ? 'mid' : 'high'; }
+
+            // 格式化运行时间
+            function fmtUptime(s) {
+                s = parseInt(s) || 0;
+                const d = Math.floor(s / 86400);
+                const h = Math.floor((s % 86400) / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                if (d > 0) return d + '天 ' + h + '小时';
+                if (h > 0) return h + '小时 ' + m + '分';
+                return m + '分钟';
+            }
+
+            const statusBadge = online
+                ? '<span class="status-pill online"><span class="status-dot online"></span>在线</span>'
+                : '<span class="status-pill offline"><span class="status-dot offline"></span>离线</span>';
+
+            contentEl.innerHTML =
+                // 指标卡片网格
+                '<div class="monitor-grid">' +
+                // CPU
+                '<div class="monitor-card cpu">' +
+                '<div class="monitor-card-header">' +
+                '<div class="monitor-card-icon"><i class="bi bi-cpu"></i></div>' +
+                '<div><div class="monitor-card-title">CPU 负载</div>' +
+                '<div class="monitor-card-value">' + cpuPct + '<span class="unit">%</span></div></div>' +
+                '</div>' +
+                '<div class="monitor-bar"><div class="monitor-bar-fill ' + barClass(cpuPct) + '" style="width:' + cpuPct + '%"></div></div>' +
+                '<div class="monitor-bar-info"><span>' + (si.cpu_cores || 1) + ' 核</span><span>' + cpuPct + '%</span></div>' +
+                '</div>' +
+                // 内存
+                '<div class="monitor-card mem">' +
+                '<div class="monitor-card-header">' +
+                '<div class="monitor-card-icon"><i class="bi bi-memory"></i></div>' +
+                '<div><div class="monitor-card-title">内存</div>' +
+                '<div class="monitor-card-value">' + si.mem_used + '<span class="unit"> / ' + si.mem_total + ' MB</span></div></div>' +
+                '</div>' +
+                '<div class="monitor-bar"><div class="monitor-bar-fill ' + barClass(memPct) + '" style="width:' + memPct + '%"></div></div>' +
+                '<div class="monitor-bar-info"><span>' + si.mem_used + ' MB 已用</span><span>' + memPct + '%</span></div>' +
+                '</div>' +
+                // 磁盘
+                '<div class="monitor-card disk">' +
+                '<div class="monitor-card-header">' +
+                '<div class="monitor-card-icon"><i class="bi bi-hdd"></i></div>' +
+                '<div><div class="monitor-card-title">磁盘</div>' +
+                '<div class="monitor-card-value">' + si.disk_used + '<span class="unit"> / ' + si.disk_total + ' GB</span></div></div>' +
+                '</div>' +
+                '<div class="monitor-bar"><div class="monitor-bar-fill ' + barClass(diskPct) + '" style="width:' + diskPct + '%"></div></div>' +
+                '<div class="monitor-bar-info"><span>' + si.disk_used + ' GB 已用</span><span>' + diskPct + '%</span></div>' +
+                '</div>' +
+                // 运行时间
+                '<div class="monitor-card up">' +
+                '<div class="monitor-card-header">' +
+                '<div class="monitor-card-icon"><i class="bi bi-clock-history"></i></div>' +
+                '<div><div class="monitor-card-title">运行时间</div>' +
+                '<div class="monitor-card-value" style="font-size:1rem;">' + fmtUptime(si.uptime) + '</div></div>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                // 系统信息
+                '<div class="surface-card" style="padding:16px;">' +
+                '<div class="monitor-info-row">' +
+                '<span class="monitor-info-label">状态</span>' +
+                '<span class="monitor-info-value">' + statusBadge + '</span>' +
+                '</div>' +
+                '<div class="monitor-info-row">' +
+                '<span class="monitor-info-label">操作系统</span>' +
+                '<span class="monitor-info-value">' + App.escHtml(si.os || '-') + '</span>' +
+                '</div>' +
+                '<div class="monitor-info-row">' +
+                '<span class="monitor-info-label">内核版本</span>' +
+                '<span class="monitor-info-value">' + App.escHtml(si.kernel || '-') + '</span>' +
+                '</div>' +
+                '<div class="monitor-info-row">' +
+                '<span class="monitor-info-label">架构</span>' +
+                '<span class="monitor-info-value">' + App.escHtml(si.arch || '-') + '</span>' +
+                '</div>' +
+                '<div class="monitor-info-row">' +
+                '<span class="monitor-info-label">IP 地址</span>' +
+                '<span class="monitor-info-value">' + App.escHtml(agent.ip_address || '-') + '</span>' +
+                '</div>' +
+                '<div class="monitor-info-row">' +
+                '<span class="monitor-info-label">最后心跳</span>' +
+                '<span class="monitor-info-value">' + App.escHtml(App.timeAgo(agent.last_seen)) + '</span>' +
+                '</div>' +
+                '</div>';
+
+        } catch (err) {
+            contentEl.innerHTML = '<div class="empty-state"><i class="bi bi-x-octagon"></i><p>加载失败</p></div>';
+        }
+    }
+
     window.copyInstallCmd = copyInstallCmd;
     window.copyAgentId = copyAgentId;
     window.editRemark = editRemark;
     window.saveRemark = saveRemark;
     window.deleteAgent = deleteAgent;
     window.confirmDelete = confirmDelete;
+    window.showMonitor = showMonitor;
 
     /* ============ 事件绑定 ============ */
     function bindEvents() {
@@ -321,6 +465,12 @@
         const refreshBtn = document.getElementById('refreshBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', loadAgents);
+        }
+
+        // 监控弹窗刷新按钮
+        const monitorRefreshBtn = document.getElementById('monitorRefreshBtn');
+        if (monitorRefreshBtn) {
+            monitorRefreshBtn.addEventListener('click', loadMonitorData);
         }
     }
 

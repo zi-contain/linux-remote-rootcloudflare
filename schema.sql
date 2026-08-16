@@ -22,7 +22,17 @@ CREATE TABLE IF NOT EXISTS agents (
     token TEXT,
     status INTEGER NOT NULL DEFAULT 0,
     last_seen TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now')),
+    sys_os TEXT,
+    sys_kernel TEXT,
+    sys_arch TEXT,
+    sys_uptime INTEGER DEFAULT 0,
+    sys_mem_total INTEGER DEFAULT 0,
+    sys_mem_used INTEGER DEFAULT 0,
+    sys_disk_total INTEGER DEFAULT 0,
+    sys_disk_used INTEGER DEFAULT 0,
+    sys_cpu_load INTEGER DEFAULT 0,
+    sys_cpu_cores INTEGER DEFAULT 1
 );
 
 -- 命令记录表

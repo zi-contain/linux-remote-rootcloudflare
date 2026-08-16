@@ -119,19 +119,31 @@ http_post() {
 # ---------------- 流式连接（实时接收命令） ----------------
 # 与服务端 connect 端点建立长连接，逐行读取推送的命令。
 # 返回 0 且输出流式数据；无 curl 时返回 1（调用方回退长轮询）。
-# 用法: stream_connect <agent_id> <hostname> <ip> <token>
+# 用法: stream_connect <agent_id> <hostname> <ip> <token> <sys_info>
 stream_connect() {
-    local agent_id="$1" hostname="$2" ip="$3" token="$4"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4" sys_info="$5"
 
     if command -v curl >/dev/null 2>&1; then
         # -N 禁用输出缓冲，服务端每行即时到达；--max-time 25 匹配服务端 20 秒生命周期 + 余量
         local token_arg=""
         [ -n "$token" ] && token_arg="--data-urlencode token=$token"
+        # 构建系统信息参数
+        local sys_args=()
+        if [ -n "$sys_info" ]; then
+            local line k v
+            while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                k="\${line%%=*}"
+                v="\${line#*=}"
+                sys_args+=( --data-urlencode "$k=$v" )
+            done <<< "$sys_info"
+        fi
         curl -sS -N --connect-timeout 5 --max-time 25 -X POST \\
             --data-urlencode "agent_id=$agent_id" \\
             --data-urlencode "hostname=$hostname" \\
             --data-urlencode "ip=$ip" \\
             $token_arg \\
+            "\${sys_args[@]}" \\
             "$CONNECT_URL" 2>/dev/null
     else
         # 无 curl 时返回失败，调用方回退到长轮询 checkin
@@ -235,6 +247,71 @@ get_public_ip() {
 
     # 3) 缓存也不存在，用内网 IP 兜底（首次启动或缓存丢失）
     hostname -I 2>/dev/null | awk '{print $1}'
+}
+
+# ---------------- 采集系统信息（供服务端监控展示） ----------------
+# 输出格式: key=value 逐行，供服务端解析
+collect_sys_info() {
+    local mem_total=0 mem_used=0 mem_avail=0
+    local disk_total=0 disk_used=0
+    local cpu_load=0 cpu_cores=1
+    local uptime_s=0 os_ver="" kernel="" arch=""
+
+    # ---- 内存信息 ----
+    if [ -r /proc/meminfo ]; then
+        mem_total=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print int($2/1024)}')
+        mem_avail=$(grep MemAvailable /proc/meminfo 2>/dev/null | awk '{print int($2/1024)}')
+        if [ -n "$mem_total" ] && [ -n "$mem_avail" ]; then
+            mem_used=$((mem_total - mem_avail))
+        fi
+    fi
+
+    # ---- 磁盘信息（根分区） ----
+    local df_line
+    df_line=$(df -B1 / 2>/dev/null | awk 'NR==2{print $2,$3}')
+    if [ -n "$df_line" ]; then
+        disk_total=$(echo "$df_line" | awk '{print int($1/1073741824)}')
+        disk_used=$(echo "$df_line" | awk '{print int($2/1073741824)}')
+    fi
+
+    # ---- CPU 负载（取 /proc/loadavg 第一列，乘 100 除以核数得百分比） ----
+    cpu_cores=$(nproc 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 1)
+    local load1
+    load1=$(awk '{print $1}' /proc/loadavg 2>/dev/null || echo "0")
+    if [ -n "$load1" ] && [ "$cpu_cores" -gt 0 ] 2>/dev/null; then
+        # 负载百分比 = load1 / cores * 100，取整
+        cpu_load=$(awk -v l="$load1" -v c="$cpu_cores" 'BEGIN { p = (l / c) * 100; if (p > 100) p = 100; printf "%d", p }')
+    fi
+
+    # ---- 系统运行时间（秒） ----
+    uptime_s=$(awk '{print int($1)}' /proc/uptime 2>/dev/null || echo 0)
+
+    # ---- OS 版本 ----
+    if [ -f /etc/os-release ]; then
+        os_ver=$(grep ^PRETTY_NAME /etc/os-release 2>/dev/null | cut -d= -f2- | tr -d '"' | head -c 80)
+    elif [ -f /etc/redhat-release ]; then
+        os_ver=$(head -c 80 /etc/redhat-release 2>/dev/null)
+    else
+        os_ver=$(uname -sr 2>/dev/null | head -c 80)
+    fi
+
+    # ---- 内核版本 ----
+    kernel=$(uname -r 2>/dev/null | head -c 60)
+
+    # ---- 架构 ----
+    arch=$(uname -m 2>/dev/null | head -c 20)
+
+    # 输出 key=value 格式
+    echo "sys_mem_total=$mem_total"
+    echo "sys_mem_used=$mem_used"
+    echo "sys_disk_total=$disk_total"
+    echo "sys_disk_used=$disk_used"
+    echo "sys_cpu_load=$cpu_load"
+    echo "sys_cpu_cores=$cpu_cores"
+    echo "sys_uptime=$uptime_s"
+    echo "sys_os=$os_ver"
+    echo "sys_kernel=$kernel"
+    echo "sys_arch=$arch"
 }
 
 # ---------------- 获取设备 UUID（作为 Agent ID） ----------------
@@ -640,19 +717,19 @@ execute_command() {
 # ---------------- 内层循环：优先流式连接，回退长轮询 ----------------
 # 返回非零表示需要重新注册
 inner_loop() {
-    local agent_id="$1" hostname="$2" ip="$3" token="$4"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4" sys_info="$5"
 
     # 有 curl 时使用流式连接（实时命令推送）；否则回退长轮询 checkin
     if command -v curl >/dev/null 2>&1; then
-        inner_loop_stream "$agent_id" "$hostname" "$ip" "$token"
+        inner_loop_stream "$agent_id" "$hostname" "$ip" "$token" "$sys_info"
     else
-        inner_loop_poll "$agent_id" "$hostname" "$ip" "$token"
+        inner_loop_poll "$agent_id" "$hostname" "$ip" "$token" "$sys_info"
     fi
 }
 
 # ---------------- 流式循环：长连接内实时接收并执行命令 ----------------
 inner_loop_stream() {
-    local agent_id="$1" hostname="$2" ip="$3" token="$4"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4" sys_info="$5"
     local line cid b64 rest fail=0 connected
 
     while [ "$RUNNING" -eq 1 ]; do
@@ -698,7 +775,7 @@ inner_loop_stream() {
                     err "服务端返回错误: $line"
                     ;;
             esac
-        done < <(stream_connect "$agent_id" "$hostname" "$ip" "$token")
+        done < <(stream_connect "$agent_id" "$hostname" "$ip" "$token" "$sys_info")
 
         # 连接已断开，判断是否异常
         if [ "$connected" -eq 0 ]; then
@@ -719,15 +796,27 @@ inner_loop_stream() {
 # ---------------- 回退循环：长轮询 checkin 拉取并执行命令 ----------------
 # 仅在无 curl（无法流式连接）时使用
 inner_loop_poll() {
-    local agent_id="$1" hostname="$2" ip="$3" token="$4"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4" sys_info="$5"
     local resp lines line cid b64 fail=0 wait
 
     while [ "$RUNNING" -eq 1 ]; do
         write_heartbeat
         check_watchdog
 
+        # 构建系统信息参数
+        local sys_args=()
+        if [ -n "$sys_info" ]; then
+            local si_line si_k si_v
+            while IFS= read -r si_line; do
+                [ -z "$si_line" ] && continue
+                si_k="\${si_line%%=*}"
+                si_v="\${si_line#*=}"
+                sys_args+=( "$si_k" "$si_v" )
+            done <<< "$sys_info"
+        fi
+
         resp=$(http_post "$API_URL" action checkin agent_id "$agent_id" \\
-            hostname "$hostname" ip "$ip" token "$token" 2>/dev/null)
+            hostname "$hostname" ip "$ip" token "$token" "\${sys_args[@]}" 2>/dev/null)
 
         # 网络异常：指数退避后重试
         if [ -z "$resp" ]; then
@@ -867,6 +956,8 @@ do_run() {
     hostname=$(hostname 2>/dev/null || echo "")
     # 获取公网 IP（带缓存，避免内网/公网来回切换）
     ip=$(get_public_ip)
+    # 采集系统信息（每次启动时采集一次，checkin 时刷新）
+    sys_info=$(collect_sys_info)
 
     log "Agent 已启动（PID $$），开始流式通信（实时命令推送）"
 
@@ -880,17 +971,21 @@ do_run() {
 
     # 外层保活循环：内层异常退出后重新注册并继续
     while [ "$RUNNING" -eq 1 ]; do
-        inner_loop "$agent_id" "$hostname" "$ip" "$agent_token" || {
+        inner_loop "$agent_id" "$hostname" "$ip" "$agent_token" "$sys_info" || {
             [ "$RUNNING" -ne 1 ] && break
             warn "与服务端通信异常，尝试重新注册..."
             do_register
             agent_id=$(get_agent_id)
+            # 重新采集系统信息
+            sys_info=$(collect_sys_info)
             sleep 5
         }
         # 检查看门狗健康
         check_watchdog
         # 写心跳
         write_heartbeat
+        # 定期刷新系统信息（每次重连时刷新）
+        sys_info=$(collect_sys_info)
         [ "$RUNNING" -eq 1 ] && sleep "$POLL_INTERVAL"
     done
 

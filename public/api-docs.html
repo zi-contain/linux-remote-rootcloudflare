@@ -71,12 +71,11 @@
            侧边栏导航
            ============================================================ */
         .docs-sidebar .nav-card {
-            background: linear-gradient(160deg, rgba(24, 32, 58, .6), rgba(17, 23, 40, .6));
+            background: var(--bg-surface);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 14px;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-sm);
         }
 
         .docs-nav-title {
@@ -103,7 +102,7 @@
         .docs-nav-link i { font-size: .82rem; width: 15px; text-align: center; color: var(--text-muted); transition: color .15s; }
         .docs-nav-link:hover { background: var(--bg-surface-2); color: var(--text); }
         .docs-nav-link:hover i { color: var(--primary); }
-        .docs-nav-link.active { background: rgba(79, 140, 255, .14); color: #fff; }
+        .docs-nav-link.active { background: rgba(79, 140, 255, .14); color: var(--primary); }
         .docs-nav-link.active i { color: var(--primary); }
         .docs-nav-link .num { margin-left: auto; font-family: var(--font-mono); font-size: .74rem; color: var(--text-muted); }
 

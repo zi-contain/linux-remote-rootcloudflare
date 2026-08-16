@@ -85,7 +85,10 @@ async function getAgents(env) {
   await markOfflineAgents(env);
 
   const result = await env.DB.prepare(
-    `SELECT agent_id, hostname, ip_address, os_info, remark, status, last_seen, created_at
+    `SELECT agent_id, hostname, ip_address, os_info, remark, status, last_seen, created_at,
+            sys_os, sys_kernel, sys_arch, sys_uptime,
+            sys_mem_total, sys_mem_used, sys_disk_total, sys_disk_used,
+            sys_cpu_load, sys_cpu_cores
      FROM agents ORDER BY status DESC, last_seen DESC`
   ).all();
 
@@ -99,6 +102,18 @@ async function getAgents(env) {
     status_text: row.status === 1 ? '在线' : '离线',
     last_seen: row.last_seen ? row.last_seen + 'Z' : '从未',
     created_at: row.created_at ? row.created_at + 'Z' : '从未',
+    sys_info: {
+      os: row.sys_os || '',
+      kernel: row.sys_kernel || '',
+      arch: row.sys_arch || '',
+      uptime: row.sys_uptime || 0,
+      mem_total: row.sys_mem_total || 0,
+      mem_used: row.sys_mem_used || 0,
+      disk_total: row.sys_disk_total || 0,
+      disk_used: row.sys_disk_used || 0,
+      cpu_load: row.sys_cpu_load || 0,
+      cpu_cores: row.sys_cpu_cores || 1,
+    },
   }));
 
   return jsonResponse({ agents });

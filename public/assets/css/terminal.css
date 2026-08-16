@@ -1,33 +1,11 @@
 /* ============================================================
    远程终端专用样式
-   终端保持深色沉浸感，覆盖全局浅色变量
+   浅色主题 · 与全局设计系统统一配色
    ============================================================ */
 
-/* ---------- 终端页面使用深色变量覆盖 ---------- */
+/* ---------- 终端页面布局 ---------- */
 .terminal-body {
-    /* 局部覆盖全局浅色令牌，保持终端深色沉浸 */
-    --bg-app:        #0d1117;
-    --bg-surface:    #161b22;
-    --bg-surface-2:  #1c2330;
-    --bg-surface-3:  #252d3d;
-    --bg-elevated:   #161b22;
-    --border:        #30363d;
-    --border-light:  #3d4452;
-    --border-strong: #4a5374;
-    --text:          #e6edf3;
-    --text-2:        #8b96a8;
-    --text-muted:    #5a6577;
-    --primary:       #4f8cff;
-    --primary-600:   #3b73e6;
-    --primary-glow:  rgba(79, 140, 255, .3);
-    --success:       #3fb950;
-    --success-glow:  rgba(63, 185, 80, .25);
-    --danger:        #f85149;
-    --warning:       #d29922;
-    --purple:        #a371f7;
-    --cyan:          #39c5cf;
-
-    background: #0d1117;
+    background: var(--bg-app);
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
@@ -35,14 +13,9 @@
     flex-direction: column;
 }
 
-/* 隐藏全局极光背景，保持终端纯黑沉浸感 */
-.terminal-body::before {
-    content: none;
-}
-
 /* ---------- 顶部导航条 ---------- */
 .terminal-nav {
-    background: var(--bg-surface);
+    background: rgba(255, 255, 255, .85);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--border);
@@ -129,15 +102,98 @@
     animation: pulseGreenMini 2s infinite;
 }
 @keyframes pulseGreenMini {
-    0%   { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(63, 185, 80, .5); }
-    70%  { box-shadow: 0 0 6px var(--success-glow), 0 0 0 5px rgba(63, 185, 80, 0); }
-    100% { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(63, 185, 80, 0); }
+    0%   { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(16, 185, 129, .5); }
+    70%  { box-shadow: 0 0 6px var(--success-glow), 0 0 0 5px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 .conn-status small {
     font-size: .75rem;
     color: var(--text-2);
     font-weight: 500;
 }
+
+/* ---------- 系统监控面板 ---------- */
+.sys-monitor-bar {
+    display: flex;
+    gap: 0;
+    padding: 10px clamp(14px, 3vw, 20px);
+    padding-left: max(clamp(14px, 3vw, 20px), env(safe-area-inset-left));
+    padding-right: max(clamp(14px, 3vw, 20px), env(safe-area-inset-right));
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+.sys-monitor-bar::-webkit-scrollbar { height: 4px; }
+.sys-monitor-bar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.sys-metric {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.sys-metric:last-child { border-right: none; }
+.sys-metric:first-child { padding-left: 0; }
+
+.sys-metric-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    font-size: .9rem;
+    flex-shrink: 0;
+}
+.sys-metric-icon.cpu  { background: rgba(79, 140, 255, .1);  color: var(--primary); }
+.sys-metric-icon.mem  { background: rgba(139, 92, 246, .1);  color: var(--purple); }
+.sys-metric-icon.disk { background: rgba(6, 182, 212, .1);   color: var(--cyan); }
+.sys-metric-icon.os   { background: rgba(245, 158, 11, .1);  color: var(--warning); }
+.sys-metric-icon.up   { background: rgba(16, 185, 129, .1);  color: var(--success); }
+
+.sys-metric-body { min-width: 0; }
+.sys-metric-label {
+    font-size: .7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    line-height: 1;
+}
+.sys-metric-value {
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+    font-family: var(--font-mono);
+    white-space: nowrap;
+}
+.sys-metric-value .unit {
+    font-size: .72rem;
+    font-weight: 400;
+    color: var(--text-2);
+}
+
+/* 迷你进度条 */
+.sys-mini-bar {
+    width: 48px;
+    height: 4px;
+    background: var(--bg-surface-3);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.sys-mini-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width .4s var(--ease-out);
+}
+.sys-mini-bar-fill.low  { background: var(--success); }
+.sys-mini-bar-fill.mid  { background: var(--warning); }
+.sys-mini-bar-fill.high { background: var(--danger); }
 
 /* ---------- 终端主体（滚动容器） ---------- */
 .terminal-window {
@@ -149,10 +205,17 @@
     font-size: clamp(12.5px, .8vw + .6rem, 13.5px);
     line-height: 1.65;
     scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+    scrollbar-color: var(--border-light) transparent;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-y;
+    /* 终端输出区使用略带暖色的白色背景，与全局区分 */
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    margin: 0 clamp(8px, 2vw, 16px);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    box-shadow: var(--shadow-sm);
 }
 .terminal-window::-webkit-scrollbar {
     width: 8px;
@@ -161,7 +224,7 @@
     background: transparent;
 }
 .terminal-window::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: var(--border-light);
     border-radius: 4px;
 }
 .terminal-window::-webkit-scrollbar-thumb:hover {
@@ -236,7 +299,7 @@
     padding: 8px 0 16px;
     position: sticky;
     bottom: 0;
-    background: linear-gradient(to top, #0d1117 70%, transparent);
+    background: linear-gradient(to top, var(--bg-surface) 70%, transparent);
     gap: 8px;
 }
 
@@ -245,7 +308,6 @@
     font-weight: 600;
     white-space: nowrap;
     font-family: inherit;
-    text-shadow: 0 0 8px var(--success-glow);
 }
 
 .terminal-input {
@@ -267,7 +329,7 @@
     opacity: .5;
 }
 
-/* 块状光标：JS 可在输入行末尾插入 .terminal-cursor 元素以获得打字机效果 */
+/* 块状光标 */
 .terminal-cursor {
     display: inline-block;
     width: .6em;
@@ -276,21 +338,11 @@
     margin-left: 2px;
     vertical-align: text-bottom;
     border-radius: 1px;
-    box-shadow: 0 0 8px var(--success-glow);
     animation: cursorBlink 1s steps(2, start) infinite;
 }
 @keyframes cursorBlink {
     0%, 50%      { opacity: 1; }
     50.01%, 100% { opacity: 0; }
-}
-
-/* 输入行聚焦时，提示符呼吸辉光 */
-.terminal-input-line:focus-within .terminal-prompt {
-    animation: promptGlow 2.4s ease-in-out infinite;
-}
-@keyframes promptGlow {
-    0%, 100% { text-shadow: 0 0 8px var(--success-glow); }
-    50%      { text-shadow: 0 0 14px var(--success-glow), 0 0 4px rgba(63, 185, 80, .85); }
 }
 
 /* ---------- 快捷命令条 ---------- */
@@ -305,11 +357,10 @@
     overscroll-behavior-x: contain;
     scroll-snap-type: x proximity;
     border-top: 1px solid var(--border);
-    background: rgba(22, 27, 34, .6);
+    background: var(--bg-surface);
     flex-shrink: 0;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
-    /* 边缘渐隐遮罩，暗示可横向滑动 */
     -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
     mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
 }
@@ -317,7 +368,7 @@
     height: 6px;
 }
 .quick-cmds::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: var(--border-light);
     border-radius: 4px;
 }
 
@@ -341,7 +392,7 @@
 .quick-cmd:hover {
     border-color: var(--primary);
     color: var(--primary);
-    background: rgba(79, 140, 255, .1);
+    background: rgba(79, 140, 255, .08);
 }
 .quick-cmd:active {
     transform: translateY(1px);
@@ -396,7 +447,7 @@
 }
 
 .history-result {
-    background: var(--bg-app);
+    background: var(--bg-surface-2);
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 8px 12px;
@@ -418,64 +469,188 @@
     border-radius: 50%;
     flex-shrink: 0;
 }
-.history-status.status-completed {
-    background: var(--success);
-}
-.history-status.status-pending {
-    background: var(--warning);
-}
+.history-status.status-completed { background: var(--success); }
+.history-status.status-pending   { background: var(--warning); }
 .history-status.status-executing {
     background: var(--primary);
     box-shadow: 0 0 0 0 var(--primary-glow);
     animation: pulseBlue 2s infinite;
 }
-.history-status.status-failed {
-    background: var(--danger);
-}
+.history-status.status-failed    { background: var(--danger); }
 @keyframes pulseBlue {
     0%   { box-shadow: 0 0 0 0 rgba(79, 140, 255, .5); }
     70%  { box-shadow: 0 0 0 6px rgba(79, 140, 255, 0); }
     100% { box-shadow: 0 0 0 0 rgba(79, 140, 255, 0); }
 }
 
-/* 触屏设备：输入行强制 16px，彻底避免 iOS Safari 聚焦缩放
-   （补充 max-width:640px 的规则，覆盖平板等 >640px 触屏） */
+/* 触屏设备：输入行强制 16px */
 @media (pointer: coarse) {
     .terminal-input-line,
     .terminal-input { font-size: 16px; }
 }
 
-/* 终端页面的弹窗也保持深色 */
-.terminal-body .modal-dark {
-    --bg-surface:    #161b22;
-    --bg-surface-2:  #1c2330;
-    --bg-surface-3:  #252d3d;
-    --border:        #30363d;
-    --border-light:  #3d4452;
-    --text:          #e6edf3;
-    --text-2:        #8b96a8;
-    --text-muted:    #5a6577;
+/* ---------- 监控弹窗 ---------- */
+.monitor-modal .modal-dark {
     background: var(--bg-surface);
     border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
 }
-.terminal-body .modal-dark .btn-close {
-    filter: invert(1) grayscale(1) brightness(1.6);
-    opacity: .7;
+.monitor-modal .modal-header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 22px;
 }
-.terminal-body .modal-dark .btn-close:hover { opacity: 1; }
-.terminal-body .modal-dark .form-control {
-    background: var(--bg-app);
+.monitor-modal .modal-title {
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.monitor-modal .modal-body { padding: 22px; }
+.monitor-modal .modal-footer {
+    border-top: 1px solid var(--border);
+    padding: 16px 22px;
+}
+
+/* 监控指标卡片网格 */
+.monitor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.monitor-card {
+    background: var(--bg-surface-2);
     border: 1px solid var(--border);
-    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
 }
-.terminal-body .modal-dark .form-control:focus {
-    background: var(--bg-app);
-    border-color: var(--primary);
+.monitor-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-accent, var(--primary));
+    opacity: .6;
+}
+.monitor-card.cpu  { --card-accent: var(--primary); }
+.monitor-card.mem  { --card-accent: var(--purple); }
+.monitor-card.disk { --card-accent: var(--cyan); }
+.monitor-card.up   { --card-accent: var(--success); }
+
+.monitor-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.monitor-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.monitor-card.cpu  .monitor-card-icon { background: rgba(79, 140, 255, .1);  color: var(--primary); }
+.monitor-card.mem  .monitor-card-icon { background: rgba(139, 92, 246, .1);  color: var(--purple); }
+.monitor-card.disk .monitor-card-icon { background: rgba(6, 182, 212, .1);   color: var(--cyan); }
+.monitor-card.up   .monitor-card-icon { background: rgba(16, 185, 129, .1);  color: var(--success); }
+
+.monitor-card-title {
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+}
+.monitor-card-value {
+    font-size: 1.3rem;
+    font-weight: 800;
     color: var(--text);
-    box-shadow: 0 0 0 .2rem var(--primary-glow);
+    font-family: var(--font-mono);
+    line-height: 1.2;
+}
+.monitor-card-value .unit {
+    font-size: .8rem;
+    font-weight: 400;
+    color: var(--text-2);
+}
+
+/* 大进度条 */
+.monitor-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-surface-3);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+.monitor-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .5s var(--ease-out);
+}
+.monitor-bar-fill.low  { background: linear-gradient(90deg, var(--success), #34d399); }
+.monitor-bar-fill.mid  { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+.monitor-bar-fill.high { background: linear-gradient(90deg, var(--danger), #f87171); }
+
+.monitor-bar-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: .75rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    font-family: var(--font-mono);
+}
+
+/* 系统信息行 */
+.monitor-info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+.monitor-info-row:last-child { border-bottom: none; }
+.monitor-info-label {
+    font-size: .82rem;
+    color: var(--text-2);
+    min-width: 90px;
+    flex-shrink: 0;
+}
+.monitor-info-value {
+    font-size: .85rem;
+    color: var(--text);
+    font-family: var(--font-mono);
+    word-break: break-all;
 }
 
 /* ---------- 响应式 ---------- */
+@media (max-width: 768px) {
+    .sys-monitor-bar {
+        padding: 8px 14px;
+    }
+    .sys-metric {
+        padding: 0 10px;
+    }
+    .sys-metric-icon {
+        width: 28px;
+        height: 28px;
+        font-size: .8rem;
+    }
+    .sys-metric-value { font-size: .78rem; }
+    .sys-metric-label { font-size: .65rem; }
+    .sys-mini-bar { width: 36px; }
+    .monitor-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 640px) {
     .terminal-nav {
         padding: 0 12px;
@@ -488,38 +663,26 @@
     .terminal-window {
         padding: 12px 14px;
         font-size: 13px;
+        margin: 0 6px;
+        border-radius: var(--radius-xs) var(--radius-xs) 0 0;
     }
-    /* 16px 字号防止 iOS 聚焦缩放 */
-    .terminal-input-line {
-        font-size: 16px;
-    }
-    .terminal-input {
-        font-size: 16px;
-    }
-    .terminal-title span {
-        max-width: 90px;
-    }
-    /* 隐藏部分次要按钮腾出空间 */
-    #btnCopy {
-        display: none;
-    }
+    .terminal-input-line { font-size: 16px; }
+    .terminal-input { font-size: 16px; }
+    .terminal-title span { max-width: 90px; }
+    #btnCopy { display: none; }
     .quick-cmds {
         padding: 8px 14px;
         padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
         padding-left: max(14px, env(safe-area-inset-left, 0px));
         padding-right: max(14px, env(safe-area-inset-right, 0px));
     }
-    .quick-cmd {
-        padding: 8px 12px;
-        font-size: .78rem;
-    }
+    .quick-cmd { padding: 8px 12px; font-size: .78rem; }
     .history-result {
         margin-left: 0;
         font-size: .76rem;
         padding: 10px 12px;
         max-height: 160px;
     }
-    /* 历史弹窗移动端：更紧凑的间距与可读性 */
     .modal-dark .modal-body { padding: 16px; }
     .modal-dark .modal-header { padding: 14px 16px; }
     .modal-dark .modal-footer { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
@@ -528,59 +691,32 @@
     .history-cmd { gap: 6px; }
     .history-cmd code { font-size: .82rem; word-break: break-all; }
     .history-time { font-size: .72rem; }
-    .conn-status {
-        padding: 4px 8px;
-    }
-    .conn-status small {
-        display: none;
-    }
+    .conn-status { padding: 4px 8px; }
+    .conn-status small { display: none; }
+    /* 隐藏标签文字，只显示图标和数值 */
+    .sys-metric-label { display: none; }
 }
 
-/* 超窄屏：进一步精简导航 */
 @media (max-width: 380px) {
-    .terminal-title span {
-        max-width: 60px;
-    }
-    .nav-right {
-        gap: 6px;
-    }
-    #btnHistory {
-        display: none;
-    }
+    .terminal-title span { max-width: 60px; }
+    .nav-right { gap: 6px; }
+    #btnHistory { display: none; }
 }
 
-/* 横屏移动端：收紧高度 */
 @media (max-height: 480px) and (orientation: landscape) {
-    .terminal-nav {
-        height: 46px;
-        height: calc(46px + env(safe-area-inset-top, 0px));
-    }
-    .terminal-window {
-        padding: 8px 14px;
-    }
+    .terminal-nav { height: 46px; height: calc(46px + env(safe-area-inset-top, 0px)); }
+    .terminal-window { padding: 8px 14px; }
     .quick-cmds {
         padding: 6px 14px;
         padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
     }
-    .quick-cmd {
-        min-height: 32px;
-        padding: 4px 10px;
-    }
+    .quick-cmd { min-height: 32px; padding: 4px 10px; }
+    .sys-monitor-bar { display: none; }
 }
 
-/* 减少动效（无障碍） */
 @media (prefers-reduced-motion: reduce) {
     .conn-status .status-dot.online,
-    .history-status.status-executing {
-        animation: none;
-    }
-    .typing-dot {
-        animation: none;
-    }
-    .terminal-cursor {
-        animation: none;
-    }
-    .terminal-input-line:focus-within .terminal-prompt {
-        animation: none;
-    }
+    .history-status.status-executing { animation: none; }
+    .typing-dot { animation: none; }
+    .terminal-cursor { animation: none; }
 }

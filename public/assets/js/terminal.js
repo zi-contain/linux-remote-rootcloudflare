@@ -259,6 +259,9 @@
                     dot.classList.toggle('offline', !online);
                 }
                 if (text) text.textContent = online ? '在线' : '离线';
+
+                // 更新系统监控条
+                updateSysMonitor(found.sys_info || {});
             } else {
                 if (dot) { dot.classList.remove('online'); dot.classList.add('offline'); }
                 if (text) text.textContent = '未找到';
@@ -266,6 +269,66 @@
         } catch (e) {
             // 查询失败时保持当前状态
         }
+    }
+
+    /* ---------- 更新系统监控条 ---------- */
+    function updateSysMonitor(si) {
+        if (!si) si = {};
+
+        // CPU
+        const cpuPct = si.cpu_load || 0;
+        const cpuEl = App.$('#sysCpu');
+        const cpuBar = App.$('#sysCpuBar');
+        if (cpuEl) cpuEl.innerHTML = cpuPct + '<span class="unit">%</span>';
+        if (cpuBar) {
+            cpuBar.style.width = cpuPct + '%';
+            cpuBar.className = 'sys-mini-bar-fill ' + barColorClass(cpuPct);
+        }
+
+        // 内存
+        const memPct = si.mem_total > 0 ? Math.round((si.mem_used / si.mem_total) * 100) : 0;
+        const memEl = App.$('#sysMem');
+        const memBar = App.$('#sysMemBar');
+        if (memEl) memEl.innerHTML = (si.mem_used || 0) + '<span class="unit">/' + (si.mem_total || 0) + 'MB</span>';
+        if (memBar) {
+            memBar.style.width = memPct + '%';
+            memBar.className = 'sys-mini-bar-fill ' + barColorClass(memPct);
+        }
+
+        // 磁盘
+        const diskPct = si.disk_total > 0 ? Math.round((si.disk_used / si.disk_total) * 100) : 0;
+        const diskEl = App.$('#sysDisk');
+        const diskBar = App.$('#sysDiskBar');
+        if (diskEl) diskEl.innerHTML = (si.disk_used || 0) + '<span class="unit">/' + (si.disk_total || 0) + 'GB</span>';
+        if (diskBar) {
+            diskBar.style.width = diskPct + '%';
+            diskBar.className = 'sys-mini-bar-fill ' + barColorClass(diskPct);
+        }
+
+        // 系统
+        const osEl = App.$('#sysOs');
+        if (osEl) {
+            const osText = si.os || '-';
+            osEl.textContent = osText.length > 20 ? osText.slice(0, 20) + '…' : osText;
+        }
+
+        // 运行时间
+        const upEl = App.$('#sysUptime');
+        if (upEl) upEl.textContent = fmtUptime(si.uptime || 0);
+    }
+
+    function barColorClass(pct) {
+        return pct < 60 ? 'low' : pct < 85 ? 'mid' : 'high';
+    }
+
+    function fmtUptime(s) {
+        s = parseInt(s) || 0;
+        const d = Math.floor(s / 86400);
+        const h = Math.floor((s % 86400) / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        if (d > 0) return d + '天' + h + '时';
+        if (h > 0) return h + '时' + m + '分';
+        return m + '分';
     }
 
     /* ---------- 历史记录弹窗 ---------- */
