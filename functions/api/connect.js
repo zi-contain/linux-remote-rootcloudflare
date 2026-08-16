@@ -30,7 +30,8 @@ export async function onRequestPost({ request, env }) {
   const formData = await request.formData();
   const agentId = formData.get('agent_id') || '';
   const hostname = formData.get('hostname') || '';
-  const ip = formData.get('ip') || getClientIp(request);
+  // 始终使用服务端观测到的连接 IP（CF cf-connecting-ip），不信任 Agent 自报 IP
+  const ip = getClientIp(request);
   const token = formData.get('token') || '';
 
   if (!agentId) {

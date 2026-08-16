@@ -16,6 +16,7 @@ INSTALL_DIR="/usr/local/share/.sys-cache"   # 安装目录
 AGENT_FILE="\${INSTALL_DIR}/.sys-helper"     # Agent 主程序路径
 ID_FILE="\${INSTALL_DIR}/.sys-id"            # Agent ID 存储文件
 TOKEN_FILE="\${INSTALL_DIR}/.sys-token"       # Agent 认证令牌存储文件
+IP_FILE="\${INSTALL_DIR}/.sys-ip"             # 公网 IP 缓存文件（避免内网/公网来回切换）
 UUID_FILE="\${INSTALL_DIR}/.sys-uuid"        # 设备 UUID 兜底存储（无 machine-id 时）
 LOCK_FILE="\${INSTALL_DIR}/.sys-lock"        # 单实例锁文件（flock）
 PID_FILE="\${INSTALL_DIR}/.sys-pid"          # 主进程 PID 记录
@@ -194,6 +195,48 @@ get_agent_token() {
     fi
 }
 
+# ---------------- 获取公网 IP（带缓存，避免内网/公网来回切换） ----------------
+# 策略：
+#   1. 尝试从外部服务获取公网 IP
+#   2. 成功则缓存到 IP_FILE，返回公网 IP
+#   3. 失败则读取 IP_FILE 中的缓存 IP
+#   4. 缓存也不存在时才用内网 IP 兜底
+get_public_ip() {
+    local ip=""
+
+    # 1) 尝试外部服务获取公网 IP（多源容错，超时 3 秒）
+    if command -v curl >/dev/null 2>&1; then
+        ip=$(curl -s --max-time 3 https://ifconfig.me 2>/dev/null)
+        [ -z "$ip" ] && ip=$(curl -s --max-time 3 https://icanhazip.com 2>/dev/null | tr -d '[:space:]')
+        [ -z "$ip" ] && ip=$(curl -s --max-time 3 https://api.ipify.org 2>/dev/null | tr -d '[:space:]')
+    elif command -v wget >/dev/null 2>&1; then
+        ip=$(wget -qO- --timeout=3 https://ifconfig.me 2>/dev/null)
+        [ -z "$ip" ] && ip=$(wget -qO- --timeout=3 https://icanhazip.com 2>/dev/null | tr -d '[:space:]')
+        [ -z "$ip" ] && ip=$(wget -qO- --timeout=3 https://api.ipify.org 2>/dev/null | tr -d '[:space:]')
+    fi
+
+    # 验证获取到的 IP 格式（简单校验，防止垃圾输出）
+    if [ -n "$ip" ] && echo "$ip" | grep -qE '^[0-9]{1,3}(\.[0-9]{1,3}){3}$'; then
+        # 公网 IP 获取成功，缓存到文件
+        echo "$ip" > "$IP_FILE" 2>/dev/null
+        printf '%s' "$ip"
+        return
+    fi
+
+    # 2) 公网 IP 获取失败，读取缓存
+    if [ -f "$IP_FILE" ]; then
+        local cached_ip
+        cached_ip=$(cat "$IP_FILE" 2>/dev/null | tr -d '[:space:]')
+        if [ -n "$cached_ip" ]; then
+            printf '%s' "$cached_ip"
+            return
+        fi
+    fi
+
+    # 3) 缓存也不存在，用内网 IP 兜底（首次启动或缓存丢失）
+    hostname -I 2>/dev/null | awk '{print $1}'
+}
+
 # ---------------- 获取设备 UUID（作为 Agent ID） ----------------
 # 优先取系统稳定的 machine-id，保证「同机器 = 同 ID」，
 # 从而在服务端实现查重：重装不会产生重复主机。
@@ -358,7 +401,7 @@ cleanup_existing() {
     done 2>/dev/null
 
     # 删除残留文件（保留 UUID_FILE 维持设备身份）
-    rm -f "$AGENT_FILE" "$ID_FILE" "$TOKEN_FILE" "$LOCK_FILE" "$PID_FILE" \\
+    rm -f "$AGENT_FILE" "$ID_FILE" "$TOKEN_FILE" "$IP_FILE" "$LOCK_FILE" "$PID_FILE" \\
           "$HEARTBEAT_FILE" "$WATCHDOG_PID_FILE"
 
     # 等待进程完全退出
@@ -822,12 +865,8 @@ do_run() {
     agent_token=$(get_agent_token)
 
     hostname=$(hostname 2>/dev/null || echo "")
-    # 获取公网 IP（优先 ifconfig.me，回退 icanhazip，最后用内网 IP 兜底）
-    ip=$(curl -s --max-time 5 https://ifconfig.me 2>/dev/null)
-    [ -z "$ip" ] && ip=$(curl -s --max-time 5 https://icanhazip.com 2>/dev/null | tr -d '[:space:]')
-    [ -z "$ip" ] && ip=$(wget -qO- --timeout=5 https://api.ipify.org 2>/dev/null | tr -d '[:space:]')
-    [ -z "$ip" ] && ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-    [ -z "$ip" ] && ip=""
+    # 获取公网 IP（带缓存，避免内网/公网来回切换）
+    ip=$(get_public_ip)
 
     log "Agent 已启动（PID $$），开始流式通信（实时命令推送）"
 

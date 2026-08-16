@@ -48,7 +48,7 @@ async function handleRequest(context) {
       return register(env, formData, request);
 
     case 'checkin':
-      return checkin(env, formData);
+      return checkin(env, formData, request);
 
     case 'result':
       return result(env, formData);
@@ -108,11 +108,12 @@ async function register(env, formData, request) {
 }
 
 /** 心跳/拉取命令（长轮询，最多 ~10s） */
-async function checkin(env, formData) {
+async function checkin(env, formData, request) {
   const agentId = formData.get('agent_id') || '';
   const hostname = formData.get('hostname') || '';
-  const ip = formData.get('ip') || '';
   const token = formData.get('token') || '';
+  // 始终使用服务端观测到的连接 IP（CF cf-connecting-ip），不信任 Agent 自报 IP
+  const ip = getClientIp(request);
 
   if (!agentId) {
     return textResponse('ERROR:缺少agent_id');

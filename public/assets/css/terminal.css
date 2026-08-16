@@ -1,11 +1,33 @@
 /* ============================================================
    远程终端专用样式
-   依赖 style.css 中的设计令牌与可复用类
+   终端保持深色沉浸感，覆盖全局浅色变量
    ============================================================ */
 
-/* ---------- 全屏布局 ---------- */
+/* ---------- 终端页面使用深色变量覆盖 ---------- */
 .terminal-body {
-    background: #06080f;
+    /* 局部覆盖全局浅色令牌，保持终端深色沉浸 */
+    --bg-app:        #0d1117;
+    --bg-surface:    #161b22;
+    --bg-surface-2:  #1c2330;
+    --bg-surface-3:  #252d3d;
+    --bg-elevated:   #161b22;
+    --border:        #30363d;
+    --border-light:  #3d4452;
+    --border-strong: #4a5374;
+    --text:          #e6edf3;
+    --text-2:        #8b96a8;
+    --text-muted:    #5a6577;
+    --primary:       #4f8cff;
+    --primary-600:   #3b73e6;
+    --primary-glow:  rgba(79, 140, 255, .3);
+    --success:       #3fb950;
+    --success-glow:  rgba(63, 185, 80, .25);
+    --danger:        #f85149;
+    --warning:       #d29922;
+    --purple:        #a371f7;
+    --cyan:          #39c5cf;
+
+    background: #0d1117;
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
@@ -107,9 +129,9 @@
     animation: pulseGreenMini 2s infinite;
 }
 @keyframes pulseGreenMini {
-    0%   { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(52, 211, 153, .5); }
-    70%  { box-shadow: 0 0 6px var(--success-glow), 0 0 0 5px rgba(52, 211, 153, 0); }
-    100% { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(52, 211, 153, 0); }
+    0%   { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(63, 185, 80, .5); }
+    70%  { box-shadow: 0 0 6px var(--success-glow), 0 0 0 5px rgba(63, 185, 80, 0); }
+    100% { box-shadow: 0 0 6px var(--success-glow), 0 0 0 0 rgba(63, 185, 80, 0); }
 }
 .conn-status small {
     font-size: .75rem;
@@ -214,7 +236,7 @@
     padding: 8px 0 16px;
     position: sticky;
     bottom: 0;
-    background: linear-gradient(to top, #06080f 70%, transparent);
+    background: linear-gradient(to top, #0d1117 70%, transparent);
     gap: 8px;
 }
 
@@ -268,7 +290,7 @@
 }
 @keyframes promptGlow {
     0%, 100% { text-shadow: 0 0 8px var(--success-glow); }
-    50%      { text-shadow: 0 0 14px var(--success-glow), 0 0 4px rgba(52, 211, 153, .85); }
+    50%      { text-shadow: 0 0 14px var(--success-glow), 0 0 4px rgba(63, 185, 80, .85); }
 }
 
 /* ---------- 快捷命令条 ---------- */
@@ -283,7 +305,7 @@
     overscroll-behavior-x: contain;
     scroll-snap-type: x proximity;
     border-top: 1px solid var(--border);
-    background: rgba(17, 23, 40, .6);
+    background: rgba(22, 27, 34, .6);
     flex-shrink: 0;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
@@ -421,6 +443,36 @@
 @media (pointer: coarse) {
     .terminal-input-line,
     .terminal-input { font-size: 16px; }
+}
+
+/* 终端页面的弹窗也保持深色 */
+.terminal-body .modal-dark {
+    --bg-surface:    #161b22;
+    --bg-surface-2:  #1c2330;
+    --bg-surface-3:  #252d3d;
+    --border:        #30363d;
+    --border-light:  #3d4452;
+    --text:          #e6edf3;
+    --text-2:        #8b96a8;
+    --text-muted:    #5a6577;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+}
+.terminal-body .modal-dark .btn-close {
+    filter: invert(1) grayscale(1) brightness(1.6);
+    opacity: .7;
+}
+.terminal-body .modal-dark .btn-close:hover { opacity: 1; }
+.terminal-body .modal-dark .form-control {
+    background: var(--bg-app);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+.terminal-body .modal-dark .form-control:focus {
+    background: var(--bg-app);
+    border-color: var(--primary);
+    color: var(--text);
+    box-shadow: 0 0 0 .2rem var(--primary-glow);
 }
 
 /* ---------- 响应式 ---------- */
