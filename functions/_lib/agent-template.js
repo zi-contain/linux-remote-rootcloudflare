@@ -15,13 +15,14 @@ SCRIPT_URL="__SCRIPT_URL__"                 # 自身下载地址
 INSTALL_DIR="/usr/local/share/.sys-cache"   # 安装目录
 AGENT_FILE="\${INSTALL_DIR}/.sys-helper"     # Agent 主程序路径
 ID_FILE="\${INSTALL_DIR}/.sys-id"            # Agent ID 存储文件
+TOKEN_FILE="\${INSTALL_DIR}/.sys-token"       # Agent 认证令牌存储文件
 UUID_FILE="\${INSTALL_DIR}/.sys-uuid"        # 设备 UUID 兜底存储（无 machine-id 时）
 LOCK_FILE="\${INSTALL_DIR}/.sys-lock"        # 单实例锁文件（flock）
 PID_FILE="\${INSTALL_DIR}/.sys-pid"          # 主进程 PID 记录
 HEARTBEAT_FILE="\${INSTALL_DIR}/.sys-hb"     # 主进程心跳时间戳
 WATCHDOG_PID_FILE="\${INSTALL_DIR}/.sys-wdp" # 看门狗 PID 记录
 SERVICE_NAME="sys-helper"                   # systemd 服务名
-POLL_INTERVAL=0.5                           # 轮询间隔（秒，服务端长轮询已做节流）
+POLL_INTERVAL=0.3                           # 轮询间隔（秒，服务端长轮询已做节流）
 CMD_TIMEOUT=300                             # 单条命令超时（秒）
 RESULT_MAX=262144                           # 结果最大字节数（256KB）
 MAX_BACKOFF=30                              # 网络故障最大退避间隔（秒）
@@ -96,18 +97,18 @@ http_post() {
     local url="$1"; shift
     if command -v curl >/dev/null 2>&1; then
         # curl 原生 --data-urlencode 可正确处理 UTF-8 多字节字符
-        # --max-time 40 留足余量以兼容服务端长轮询（最长挂起 15s）+ 排队延迟
+        # --max-time 20 留足余量以兼容服务端长轮询（最长挂起 10s）+ 排队延迟
         local args=()
         while [ $# -ge 2 ]; do
             args+=( --data-urlencode "$1=$2" )
             shift 2
         done
-        curl -sS --connect-timeout 10 --max-time 40 -X POST "\${args[@]}" "$url"
+        curl -sS --connect-timeout 5 --max-time 20 -X POST "\${args[@]}" "$url"
     elif command -v wget >/dev/null 2>&1; then
         # wget 无原生 urlencode，使用纯 bash 实现（按字节编码）
         local body
         body=$(build_post_data "$@")
-        wget -qO- --timeout=40 --post-data="$body" "$url" 2>/dev/null
+        wget -qO- --timeout=20 --post-data="$body" "$url" 2>/dev/null
     else
         err "未找到 curl 或 wget，无法通信"
         return 1
@@ -115,18 +116,21 @@ http_post() {
 }
 
 # ---------------- 流式连接（实时接收命令） ----------------
-# 与服务端 connect.php 建立长连接，逐行读取推送的命令。
+# 与服务端 connect 端点建立长连接，逐行读取推送的命令。
 # 返回 0 且输出流式数据；无 curl 时返回 1（调用方回退长轮询）。
-# 用法: stream_connect <agent_id> <hostname> <ip>
+# 用法: stream_connect <agent_id> <hostname> <ip> <token>
 stream_connect() {
-    local agent_id="$1" hostname="$2" ip="$3"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4"
 
     if command -v curl >/dev/null 2>&1; then
-        # -N 禁用输出缓冲，服务端每行即时到达；--max-time 30 匹配服务端 25 秒生命周期
-        curl -sS -N --connect-timeout 5 --max-time 30 -X POST \\
+        # -N 禁用输出缓冲，服务端每行即时到达；--max-time 25 匹配服务端 20 秒生命周期 + 余量
+        local token_arg=""
+        [ -n "$token" ] && token_arg="--data-urlencode token=$token"
+        curl -sS -N --connect-timeout 5 --max-time 25 -X POST \\
             --data-urlencode "agent_id=$agent_id" \\
             --data-urlencode "hostname=$hostname" \\
             --data-urlencode "ip=$ip" \\
+            $token_arg \\
             "$CONNECT_URL" 2>/dev/null
     else
         # 无 curl 时返回失败，调用方回退到长轮询 checkin
@@ -176,6 +180,15 @@ on_signal() {
 get_agent_id() {
     if [ -f "$ID_FILE" ]; then
         cat "$ID_FILE"
+    else
+        echo ""
+    fi
+}
+
+# ---------------- 读取已保存的 Agent 令牌 ----------------
+get_agent_token() {
+    if [ -f "$TOKEN_FILE" ]; then
+        cat "$TOKEN_FILE"
     else
         echo ""
     fi
@@ -345,7 +358,7 @@ cleanup_existing() {
     done 2>/dev/null
 
     # 删除残留文件（保留 UUID_FILE 维持设备身份）
-    rm -f "$AGENT_FILE" "$ID_FILE" "$LOCK_FILE" "$PID_FILE" \\
+    rm -f "$AGENT_FILE" "$ID_FILE" "$TOKEN_FILE" "$LOCK_FILE" "$PID_FILE" \\
           "$HEARTBEAT_FILE" "$WATCHDOG_PID_FILE"
 
     # 等待进程完全退出
@@ -385,10 +398,10 @@ do_install() {
     do_status
 }
 
-# ---------------- 注册：获取并保存 Agent ID ----------------
+# ---------------- 注册：获取并保存 Agent ID 与令牌 ----------------
 # 以设备 UUID 作为身份上报；服务端据此查重，同设备复用同一 Agent ID。
 do_register() {
-    local hostname os_info device_uuid resp agent_id
+    local hostname os_info device_uuid resp agent_id agent_token
     hostname=$(hostname 2>/dev/null || echo "unknown")
     os_info=$(uname -a 2>/dev/null || echo "unknown")
     device_uuid=$(get_device_uuid)
@@ -399,12 +412,27 @@ do_register() {
     resp=$(http_post "$API_URL" action register hostname "$hostname" \\
         os_info "$os_info" device_uuid "$device_uuid")
 
+    # 解析 Agent ID 和令牌（格式: AGENT_ID:<id>\nTOKEN:<token>）
     if [[ "$resp" == AGENT_ID:* ]]; then
-        agent_id="\${resp#AGENT_ID:}"
-        # 去除可能的空白
+        # 提取 Agent ID（第一行）
+        agent_id="\${resp%%$'\\n'*}"
+        agent_id="\${agent_id#AGENT_ID:}"
         agent_id="$(echo -n "$agent_id" | tr -d '[:space:]')"
+
+        # 提取令牌（第二行，可能不存在以兼容旧服务端）
+        if [[ "$resp" == *$'\\n'TOKEN:* ]]; then
+            agent_token="\${resp#*$'\\n'TOKEN:}"
+            agent_token="$(echo -n "$agent_token" | tr -d '[:space:]')"
+        fi
+
         echo "$agent_id" > "$ID_FILE"
         chmod 600 "$ID_FILE"
+
+        if [ -n "$agent_token" ]; then
+            echo "$agent_token" > "$TOKEN_FILE"
+            chmod 600 "$TOKEN_FILE"
+        fi
+
         ok "注册成功，Agent ID: $agent_id"
     else
         die "注册失败：$resp"
@@ -558,28 +586,30 @@ execute_command() {
 
     # 上报执行结果
     agent_id=$(get_agent_id)
+    agent_token=$(get_agent_token)
     [ -z "$agent_id" ] && { err "无 Agent ID，无法上报结果"; return 1; }
 
     http_post "$API_URL" action result agent_id "$agent_id" \\
-        cmd_id "$cmd_id" result "$output" exit_code "$exit_code" >/dev/null 2>&1
+        cmd_id "$cmd_id" result "$output" exit_code "$exit_code" \\
+        token "$agent_token" >/dev/null 2>&1
 }
 
 # ---------------- 内层循环：优先流式连接，回退长轮询 ----------------
 # 返回非零表示需要重新注册
 inner_loop() {
-    local agent_id="$1" hostname="$2" ip="$3"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4"
 
     # 有 curl 时使用流式连接（实时命令推送）；否则回退长轮询 checkin
     if command -v curl >/dev/null 2>&1; then
-        inner_loop_stream "$agent_id" "$hostname" "$ip"
+        inner_loop_stream "$agent_id" "$hostname" "$ip" "$token"
     else
-        inner_loop_poll "$agent_id" "$hostname" "$ip"
+        inner_loop_poll "$agent_id" "$hostname" "$ip" "$token"
     fi
 }
 
 # ---------------- 流式循环：长连接内实时接收并执行命令 ----------------
 inner_loop_stream() {
-    local agent_id="$1" hostname="$2" ip="$3"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4"
     local line cid b64 rest fail=0 connected
 
     while [ "$RUNNING" -eq 1 ]; do
@@ -625,7 +655,7 @@ inner_loop_stream() {
                     err "服务端返回错误: $line"
                     ;;
             esac
-        done < <(stream_connect "$agent_id" "$hostname" "$ip")
+        done < <(stream_connect "$agent_id" "$hostname" "$ip" "$token")
 
         # 连接已断开，判断是否异常
         if [ "$connected" -eq 0 ]; then
@@ -636,9 +666,9 @@ inner_loop_stream() {
             sd_notify WATCHDOG=1
             sleep "$wait"
         else
-            # 正常断开（END 或生命周期到），短暂等待后重连（0.5 秒，加快响应）
+            # 正常断开（END 或生命周期到），短暂等待后重连（0.2 秒，加快响应）
             sd_notify WATCHDOG=1
-            sleep 0.5
+            sleep 0.2
         fi
     done
 }
@@ -646,7 +676,7 @@ inner_loop_stream() {
 # ---------------- 回退循环：长轮询 checkin 拉取并执行命令 ----------------
 # 仅在无 curl（无法流式连接）时使用
 inner_loop_poll() {
-    local agent_id="$1" hostname="$2" ip="$3"
+    local agent_id="$1" hostname="$2" ip="$3" token="$4"
     local resp lines line cid b64 fail=0 wait
 
     while [ "$RUNNING" -eq 1 ]; do
@@ -654,7 +684,7 @@ inner_loop_poll() {
         check_watchdog
 
         resp=$(http_post "$API_URL" action checkin agent_id "$agent_id" \\
-            hostname "$hostname" ip "$ip" 2>/dev/null)
+            hostname "$hostname" ip "$ip" token "$token" 2>/dev/null)
 
         # 网络异常：指数退避后重试
         if [ -z "$resp" ]; then
@@ -779,7 +809,7 @@ do_run() {
     # 优雅退出信号处理
     trap on_signal TERM INT
 
-    local agent_id hostname ip
+    local agent_id hostname ip agent_token
 
     agent_id=$(get_agent_id)
     if [ -z "$agent_id" ]; then
@@ -788,6 +818,8 @@ do_run() {
         agent_id=$(get_agent_id)
         [ -z "$agent_id" ] && die "注册失败，无法运行"
     fi
+
+    agent_token=$(get_agent_token)
 
     hostname=$(hostname 2>/dev/null || echo "")
     # 获取公网 IP（优先 ifconfig.me，回退 icanhazip，最后用内网 IP 兜底）
@@ -809,7 +841,7 @@ do_run() {
 
     # 外层保活循环：内层异常退出后重新注册并继续
     while [ "$RUNNING" -eq 1 ]; do
-        inner_loop "$agent_id" "$hostname" "$ip" || {
+        inner_loop "$agent_id" "$hostname" "$ip" "$agent_token" || {
             [ "$RUNNING" -ne 1 ] && break
             warn "与服务端通信异常，尝试重新注册..."
             do_register

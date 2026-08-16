@@ -16,26 +16,38 @@
  */
 
 import { textResponse, getClientIp, b64encode } from '../_lib/helpers.js';
-import { isInstalled } from '../_lib/db.js';
+import { isInstalled, ensureAgentTokenColumn } from '../_lib/db.js';
+import { constantTimeEqual } from '../_lib/auth.js';
 
 export async function onRequestPost({ request, env }) {
   if (!await isInstalled(env)) {
     return textResponse('ERROR:系统未安装\n');
   }
 
+  // 确保 token 列存在（兼容旧部署）
+  await ensureAgentTokenColumn(env);
+
   const formData = await request.formData();
   const agentId = formData.get('agent_id') || '';
   const hostname = formData.get('hostname') || '';
   const ip = formData.get('ip') || getClientIp(request);
+  const token = formData.get('token') || '';
 
   if (!agentId) {
     return textResponse('ERROR:缺少agent_id\n');
   }
 
-  // 校验 Agent 是否存在
-  const agent = await env.DB.prepare('SELECT id FROM agents WHERE agent_id = ?').bind(agentId).first();
+  // 校验 Agent 是否存在并验证令牌
+  const agent = await env.DB.prepare('SELECT id, token FROM agents WHERE agent_id = ?').bind(agentId).first();
   if (!agent) {
     return textResponse('ERROR:agent不存在\n');
+  }
+
+  // 验证令牌（兼容旧 Agent：无令牌时允许连接）
+  if (agent.token) {
+    if (!token || !constantTimeEqual(token, agent.token)) {
+      return textResponse('ERROR:认证失败\n');
+    }
   }
 
   // 更新心跳与主机信息
@@ -64,9 +76,9 @@ export async function onRequestPost({ request, env }) {
       // 连接确认
       controller.enqueue(encoder.encode(`OK ${agentId}\n`));
 
-      const deadline = Date.now() + 25000; // 单次连接最长 25 秒（减少重连次数，降低 D1 writes）
-      const pollInterval = 500;             // 探测间隔 0.5 秒（加快命令下发速度）
-      const beatEvery = 10000;              // 每 10 秒发一次心跳（减少流量）
+      const deadline = Date.now() + 20000; // 单次连接最长 20 秒（平衡延迟与 D1 消耗）
+      const pollInterval = 250;             // 探测间隔 0.25 秒（命令下发延迟 ≤250ms）
+      const beatEvery = 8000;               // 每 8 秒发一次心跳
       let lastBeat = Date.now();
       // last_seen 已在连接初始时更新，25 秒后重连会再次更新，循环内无需重复写入
 

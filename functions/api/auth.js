@@ -13,12 +13,22 @@ import {
 } from '../_lib/auth.js';
 import { isInstalled } from '../_lib/db.js';
 
+/** 获取 JWT 密钥，未设置时返回 null */
+function getJwtSecret(env) {
+  if (!env.JWT_SECRET) {
+    console.error('JWT_SECRET environment variable not set');
+    return null;
+  }
+  return env.JWT_SECRET;
+}
+
 /** GET：检查登录状态 */
 export async function onRequestGet({ request, env }) {
   const token = getCookie(request);
   if (!token) return jsonResponse({ authenticated: false });
 
-  const secret = env.JWT_SECRET || 'default-secret-change-me';
+  const secret = getJwtSecret(env);
+  if (!secret) return jsonResponse({ authenticated: false });
   const payload = await verifyToken(token, secret);
   if (!payload) return jsonResponse({ authenticated: false });
 
@@ -60,9 +70,13 @@ export async function onRequestPost({ request, env }) {
 
     // 创建 JWT 令牌（内嵌 CSRF 令牌）
     const csrfToken = randomHex(32);
+    const secret = getJwtSecret(env);
+    if (!secret) {
+      return jsonResponse({ error: '服务器配置错误' }, 500);
+    }
     const token = await createToken(
       { uid: user.id, uname: user.username, csrf: csrfToken },
-      env.JWT_SECRET || 'default-secret-change-me'
+      secret
     );
 
     const isSecure = new URL(request.url).protocol === 'https:';

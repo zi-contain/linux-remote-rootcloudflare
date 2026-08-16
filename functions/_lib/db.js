@@ -20,10 +20,10 @@ export async function isInstalled(env) {
   }
 }
 
-/** 将超过 90 秒未心跳的 Agent 标记为离线（适配 25 秒连接周期 + 重连间隙） */
+/** 将超过 60 秒未心跳的 Agent 标记为离线（适配 20 秒连接周期 + 重连间隙） */
 export async function markOfflineAgents(env) {
   await env.DB.prepare(
-    "UPDATE agents SET status = 0 WHERE last_seen IS NOT NULL AND last_seen < datetime('now', '-90 seconds') AND status = 1"
+    "UPDATE agents SET status = 0 WHERE last_seen IS NOT NULL AND last_seen < datetime('now', '-60 seconds') AND status = 1"
   ).run();
 }
 
@@ -56,5 +56,18 @@ export async function ensureSettingsTable(env) {
     ).run();
   } catch {
     // 忽略错误（表已存在）
+  }
+}
+
+/** 确保 agents 表有 token 列（兼容旧部署） */
+export async function ensureAgentTokenColumn(env) {
+  try {
+    await env.DB.prepare('SELECT token FROM agents LIMIT 1').first();
+  } catch {
+    try {
+      await env.DB.prepare('ALTER TABLE agents ADD COLUMN token TEXT').run();
+    } catch {
+      // 列已存在或其他错误
+    }
   }
 }

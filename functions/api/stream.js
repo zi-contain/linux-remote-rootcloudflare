@@ -52,8 +52,8 @@ export async function onRequestGet({ request, env }) {
       // 连接建立提示
       enqueue(': connected\n\n');
 
-      const deadline = Date.now() + 30000; // 最多等待 30 秒
-      const pollInterval = 500;             // 探测间隔 0.5 秒（加快结果推送）
+      const deadline = Date.now() + 20000; // 最多等待 20 秒（匹配 Agent 连接周期）
+      const pollInterval = 300;             // 探测间隔 0.3 秒（结果推送延迟 ≤300ms）
       let beatCount = 0;
       let resolved = false;
 

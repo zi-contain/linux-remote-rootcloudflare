@@ -9,6 +9,8 @@ export function jsonResponse(data, code = 200, extraHeaders = {}) {
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
       ...extraHeaders,
     },
   });
@@ -20,6 +22,7 @@ export function textResponse(text, code = 200, extraHeaders = {}) {
     status: code,
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
       ...extraHeaders,
     },
   });

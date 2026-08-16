@@ -57,7 +57,7 @@ export async function verifyPassword(password, storedHash) {
 }
 
 /** 恒定时间字符串比较 */
-function constantTimeEqual(a, b) {
+export function constantTimeEqual(a, b) {
   if (a.length !== b.length) return false;
   let result = 0;
   for (let i = 0; i < a.length; i++) {
@@ -164,7 +164,11 @@ export async function checkAuth(request, env) {
   const token = getCookie(request);
   if (!token) return { authenticated: false };
 
-  const secret = env.JWT_SECRET || 'default-secret-change-me';
+  const secret = env.JWT_SECRET;
+  if (!secret) {
+    console.error('JWT_SECRET environment variable not set');
+    return { authenticated: false };
+  }
   const payload = await verifyToken(token, secret);
   if (!payload) return { authenticated: false };
 
@@ -200,7 +204,7 @@ export function verifyCsrf(request, auth, formData) {
   const formToken = formData?.get('csrf_token') || '';
   const token = headerToken || formToken;
   const known = auth.csrfToken || '';
-  return token !== '' && known !== '' && token === known;
+  return token !== '' && known !== '' && constantTimeEqual(token, known);
 }
 
 

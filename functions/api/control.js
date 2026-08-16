@@ -15,6 +15,7 @@
 
 import { jsonResponse, getBaseUrl, b64encode } from '../_lib/helpers.js';
 import { isInstalled, markOfflineAgents, getSetting, ensureSettingsTable } from '../_lib/db.js';
+import { constantTimeEqual } from '../_lib/auth.js';
 
 /** 从 Authorization 头解析 Bearer 令牌 */
 function getBearerToken(request) {
@@ -38,7 +39,7 @@ async function handleRequest(context, method) {
   // API 密钥认证：从 settings 读取密钥并与 Bearer 令牌比对
   const apiKey = await getSetting(env, 'api_key');
   const token = getBearerToken(request);
-  if (!apiKey || !token || apiKey !== token) {
+  if (!apiKey || !token || !constantTimeEqual(apiKey, token)) {
     return jsonResponse({ error: '无效的API密钥' }, 401);
   }
 

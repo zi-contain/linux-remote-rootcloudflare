@@ -113,6 +113,11 @@ async function sendCommand(env, formData) {
     return jsonResponse({ error: '参数不能为空' }, 400);
   }
 
+  // 命令长度限制（防止超大请求）
+  if (command.length > 10000) {
+    return jsonResponse({ error: '命令过长（最大 10000 字符）' }, 400);
+  }
+
   // 校验 Agent 是否存在
   const agent = await env.DB.prepare('SELECT id FROM agents WHERE agent_id = ?').bind(agentId).first();
   if (!agent) {

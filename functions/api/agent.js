@@ -11,7 +11,23 @@
  */
 
 import { textResponse, getClientIp, b64encode, b64decode, randomHex } from '../_lib/helpers.js';
-import { isInstalled } from '../_lib/db.js';
+import { isInstalled, ensureAgentTokenColumn } from '../_lib/db.js';
+import { constantTimeEqual } from '../_lib/auth.js';
+
+/** 恒定时间验证 Agent 令牌 */
+async function verifyAgentToken(env, agentId, token) {
+  if (!token) return false;
+  const agent = await env.DB.prepare(
+    'SELECT token FROM agents WHERE agent_id = ?'
+  ).bind(agentId).first();
+
+  if (!agent) return false;
+
+  // 兼容旧 Agent（无令牌）：允许首次连接，自动补发令牌
+  if (!agent.token) return null;
+
+  return constantTimeEqual(token, agent.token);
+}
 
 /** 统一入口 */
 async function handleRequest(context) {
@@ -20,6 +36,9 @@ async function handleRequest(context) {
   if (!await isInstalled(env)) {
     return textResponse('ERROR:系统未安装');
   }
+
+  // 确保 token 列存在（兼容旧部署）
+  await ensureAgentTokenColumn(env);
 
   const formData = await request.formData();
   const action = formData.get('action') || '';
@@ -51,30 +70,41 @@ async function register(env, formData, request) {
     deviceUuid = randomHex(16);
   }
 
+  // 生成 Agent 令牌
+  const agentToken = randomHex(32);
+
   // 查重：同设备 UUID 已注册过则复用原记录
   const existing = await env.DB.prepare(
-    'SELECT agent_id FROM agents WHERE agent_id = ?'
+    'SELECT agent_id, token FROM agents WHERE agent_id = ?'
   ).bind(deviceUuid).first();
 
   if (existing) {
     // 已存在：刷新在线状态与主机信息
-    await env.DB.prepare(
-      `UPDATE agents
-       SET status = 1, last_seen = datetime('now'),
-           hostname = CASE WHEN ? = '' THEN hostname ELSE ? END,
-           ip_address = CASE WHEN ? = '' THEN ip_address ELSE ? END,
-           os_info = CASE WHEN ? = '' THEN os_info ELSE ? END
-       WHERE agent_id = ?`
-    ).bind(hostname, hostname, ip, ip, osInfo, osInfo, deviceUuid).run();
-    return textResponse('AGENT_ID:' + existing.agent_id);
+    // 若已有令牌则返回旧令牌，否则生成新令牌
+    const tokenToReturn = existing.token || agentToken;
+    if (!existing.token) {
+      await env.DB.prepare(
+        'UPDATE agents SET status = 1, last_seen = datetime(\'now\'), token = ? WHERE agent_id = ?'
+      ).bind(tokenToReturn, deviceUuid).run();
+    } else {
+      await env.DB.prepare(
+        `UPDATE agents
+         SET status = 1, last_seen = datetime('now'),
+             hostname = CASE WHEN ? = '' THEN hostname ELSE ? END,
+             ip_address = CASE WHEN ? = '' THEN ip_address ELSE ? END,
+             os_info = CASE WHEN ? = '' THEN os_info ELSE ? END
+         WHERE agent_id = ?`
+      ).bind(hostname, hostname, ip, ip, osInfo, osInfo, deviceUuid).run();
+    }
+    return textResponse('AGENT_ID:' + existing.agent_id + '\nTOKEN:' + tokenToReturn);
   }
 
   // 首次注册
   await env.DB.prepare(
-    `INSERT INTO agents (agent_id, hostname, ip_address, os_info, status, last_seen)
-     VALUES (?, ?, ?, ?, 1, datetime('now'))`
-  ).bind(deviceUuid, hostname, ip, osInfo).run();
-  return textResponse('AGENT_ID:' + deviceUuid);
+    `INSERT INTO agents (agent_id, hostname, ip_address, os_info, token, status, last_seen)
+     VALUES (?, ?, ?, ?, ?, 1, datetime('now'))`
+  ).bind(deviceUuid, hostname, ip, osInfo, agentToken).run();
+  return textResponse('AGENT_ID:' + deviceUuid + '\nTOKEN:' + agentToken);
 }
 
 /** 心跳/拉取命令（长轮询，最多 ~10s） */
@@ -82,9 +112,16 @@ async function checkin(env, formData) {
   const agentId = formData.get('agent_id') || '';
   const hostname = formData.get('hostname') || '';
   const ip = formData.get('ip') || '';
+  const token = formData.get('token') || '';
 
   if (!agentId) {
     return textResponse('ERROR:缺少agent_id');
+  }
+
+  // 验证 Agent 令牌
+  const tokenValid = await verifyAgentToken(env, agentId, token);
+  if (tokenValid === false) {
+    return textResponse('ERROR:认证失败');
   }
 
   // 校验 Agent 是否存在
@@ -146,9 +183,16 @@ async function result(env, formData) {
   const cmdId = formData.get('cmd_id') || '';
   const resultText = formData.get('result') || '';
   const exitCode = parseInt(formData.get('exit_code') || '0', 10);
+  const token = formData.get('token') || '';
 
   if (!agentId || !cmdId) {
     return textResponse('ERROR:参数缺失');
+  }
+
+  // 验证 Agent 令牌
+  const tokenValid = await verifyAgentToken(env, agentId, token);
+  if (tokenValid === false) {
+    return textResponse('ERROR:认证失败');
   }
 
   // 校验命令归属该 Agent

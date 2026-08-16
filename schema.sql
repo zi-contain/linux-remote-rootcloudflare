@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS agents (
     ip_address TEXT,
     os_info TEXT,
     remark TEXT,
+    token TEXT,
     status INTEGER NOT NULL DEFAULT 0,
     last_seen TEXT,
     created_at TEXT DEFAULT (datetime('now'))

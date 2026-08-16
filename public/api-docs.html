@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#111728">
     <title>API 文档 - 远控管理系统</title>
 
     <!-- Bootstrap 5.3 -->
@@ -507,6 +508,10 @@
             <div class="brand-icon"><i class="bi bi-code-slash"></i></div>
             <span class="brand-text">API 文档</span>
         </div>
+        <input type="checkbox" id="navToggle" class="nav-toggle-input" aria-label="切换菜单">
+        <label for="navToggle" class="nav-toggle-btn" aria-label="菜单">
+            <i class="bi bi-list"></i>
+        </label>
         <div class="nav-actions">
             <div class="nav-user">
                 <i class="bi bi-person-circle"></i>
@@ -1111,7 +1116,19 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                 sections.forEach(function (s) { obs.observe(s); });
             }
 
-            /* ---------- 初始化 ---------- */
+            /* ---------- 移动端汉堡菜单收起 ---------- */
+        function bindNavToggle() {
+            var toggle = document.getElementById('navToggle');
+            var actions = document.querySelector('.nav-actions');
+            if (!toggle || !actions) return;
+            actions.addEventListener('click', function (e) {
+                if (e.target.closest('a, button')) {
+                    toggle.checked = false;
+                }
+            });
+        }
+
+        /* ---------- 初始化 ---------- */
             async function init() {
                 // 1) 登录校验：通过 get_agents 确认（401 → 跳转首页）
                 try {
@@ -1155,6 +1172,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                 bindCopyButtons();
                 bindGenerateKey();
                 bindBackToTop();
+                bindNavToggle();
                 initScrollSpy();
             }
 

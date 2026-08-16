@@ -18,6 +18,8 @@
     let currentFilter = 'all';
     // 自动刷新定时器句柄
     let autoTimer = null;
+    // 是否正在刷新（用于显示细微加载指示并防止重复请求）
+    let refreshing = false;
 
     /* ---------- 内部工具：判断主机是否在线 ---------- */
     function isOnline(agent) {
@@ -47,14 +49,32 @@
 
     /* ---------- 加载主机列表 ---------- */
     async function loadAgents() {
+        if (refreshing) return; // 避免重复刷新
+        setRefreshing(true);
         try {
             const data = await App.apiGet(API, { action: 'get_agents' });
             allAgents = (data && Array.isArray(data.agents)) ? data.agents : [];
         } catch (err) {
             console.error('加载主机列表失败:', err);
+        } finally {
+            setRefreshing(false);
         }
         updateStats();
         renderTable();
+    }
+
+    /* ---------- 刷新指示器（不替换整张表格，仅给出细微反馈） ---------- */
+    function setRefreshing(on) {
+        refreshing = on;
+        const btn = document.getElementById('refreshBtn');
+        if (!btn) return;
+        const icon = btn.querySelector('i');
+        if (icon) {
+            // 复用 style.css 中已定义的 @keyframes spin
+            icon.style.animation = on ? 'spin .7s linear infinite' : '';
+        }
+        btn.style.opacity = on ? '0.7' : '';
+        btn.style.pointerEvents = on ? 'none' : '';
     }
 
     /* ---------- 更新统计卡片 ---------- */
@@ -88,6 +108,7 @@
                 const hay = [
                     agent.hostname || '',
                     agent.ip_address || '',
+                    agent.os_info || '',
                     agent.remark || '',
                     agent.agent_id || ''
                 ].join(' ').toLowerCase();
@@ -98,7 +119,7 @@
 
         if (list.length === 0) {
             tbody.innerHTML =
-                '<tr><td colspan="7">' +
+                '<tr><td colspan="8">' +
                 '<div class="empty-state">' +
                 '<i class="bi bi-inbox"></i>' +
                 '<p>暂无主机</p>' +
@@ -117,8 +138,17 @@
             const id = agent.agent_id || '';
             const remark = agent.remark || '';
             const lastSeen = agent.last_seen || '';
+            const osInfo = agent.os_info || '';
 
             const shortId = id.length > 12 ? id.slice(0, 12) + '…' : id;
+
+            // OS 信息：表格内截断为前 30 个字符，完整内容放入 title 提示
+            const osCell = osInfo
+                ? '<span class="os-info" title="' + App.escHtml(osInfo) + '">' +
+                  '<i class="bi bi-info-circle" style="color:var(--text-2)"></i> ' +
+                  App.escHtml(osInfo.length > 30 ? osInfo.slice(0, 30) + '…' : osInfo) +
+                  '</span>'
+                : '<span class="text-muted">-</span>';
 
             const remarkCell = remark
                 ? App.escHtml(remark)
@@ -133,19 +163,20 @@
 
             return (
                 '<tr class="' + (online ? 'agent-online' : 'agent-offline') + '">' +
-                '<td><span class="status-pill ' + statusCls + '">' +
+                '<td data-label="状态"><span class="status-pill ' + statusCls + '">' +
                 '<span class="status-dot ' + statusCls + '"></span>' + statusText +
                 '</span></td>' +
-                '<td><span class="host-name"><i class="bi bi-pc-display"></i>' +
+                '<td data-label="主机名"><span class="host-name"><i class="bi bi-pc-display"></i>' +
                 App.escHtml(hostname) + '</span></td>' +
-                '<td><code class="ip-code">' + App.escHtml(ip) + '</code></td>' +
-                '<td><span class="agent-id-badge" title="' + App.escHtml(id) + '" ' +
+                '<td data-label="IP地址"><code class="ip-code">' + App.escHtml(ip) + '</code></td>' +
+                '<td data-label="系统信息">' + osCell + '</td>' +
+                '<td data-label="Agent ID"><span class="agent-id-badge" title="' + App.escHtml(id) + '" ' +
                 'onclick="copyAgentId(\'' + attrStr(id) + '\')">' +
                 App.escHtml(shortId) + '</span></td>' +
-                '<td>' + remarkCell + '</td>' +
-                '<td><small class="text-muted" title="' + App.escHtml(fullTime) + '">' +
+                '<td data-label="备注">' + remarkCell + '</td>' +
+                '<td data-label="最后在线"><small class="text-muted" title="' + App.escHtml(fullTime) + '">' +
                 App.escHtml(agoText) + '</small></td>' +
-                '<td><div class="row-actions">' +
+                '<td data-label="操作"><div class="row-actions">' +
                 '<a class="btn-terminal" href="' + termHref + '"><i class="bi bi-terminal"></i> 终端</a>' +
                 '<button class="btn-icon edit" title="编辑备注" ' +
                 'onclick="editRemark(\'' + attrStr(id) + '\',\'' + attrStr(remark) + '\')">' +
@@ -164,6 +195,31 @@
     function copyInstallCmd() {
         const el = document.getElementById('installCmd');
         App.copyToClipboard(el ? el.textContent : '');
+        flashCopyBtn();
+    }
+
+    /* ---------- “复制”按钮反馈动画 ---------- */
+    function flashCopyBtn() {
+        const btn = document.querySelector('.install-section .btn-copy');
+        if (!btn || btn._copying) return;
+        btn._copying = true;
+
+        const origHTML = btn.innerHTML;
+        btn.style.transition = 'background .2s ease, border-color .2s ease, color .2s ease, transform .2s ease';
+        btn.style.background = 'var(--success)';
+        btn.style.borderColor = 'var(--success)';
+        btn.style.color = '#fff';
+        btn.style.transform = 'scale(1.04)';
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> 已复制';
+
+        setTimeout(function () {
+            btn.style.background = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+            btn.style.transform = '';
+            btn.innerHTML = origHTML;
+            btn._copying = false;
+        }, 1500);
     }
 
     function copyAgentId(id) {
