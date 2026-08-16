@@ -931,17 +931,18 @@ code, pre { font-family: var(--font-mono); }
     border-radius: 7px;
     transition: width .6s var(--ease-out);
     position: relative;
-    min-width: 2px;
+    overflow: hidden;
+    min-width: 0;
 }
 .mg-res-bar-fill.low  { background: linear-gradient(90deg, #10b981, #34d399); box-shadow: 0 0 8px rgba(16,185,129,.3); }
 .mg-res-bar-fill.mid  { background: linear-gradient(90deg, #f59e0b, #fbbf24); box-shadow: 0 0 8px rgba(245,158,11,.3); }
 .mg-res-bar-fill.high { background: linear-gradient(90deg, #ef4444, #f87171); box-shadow: 0 0 8px rgba(239,68,68,.3); }
-/* 末端高光 */
+/* 末端高光 — overflow:hidden 确保不溢出 */
 .mg-res-bar-fill::after {
     content: '';
     position: absolute;
     top: 0; right: 0; bottom: 0;
-    width: 16px;
+    width: 12px;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,.4));
     border-radius: 7px;
 }
@@ -1030,16 +1031,17 @@ code, pre { font-family: var(--font-mono); }
     border-radius: 3px;
     transition: width .5s var(--ease-out);
     position: relative;
+    overflow: hidden;
 }
 .inline-metric-fill.low  { background: linear-gradient(90deg, var(--success), #34d399); }
 .inline-metric-fill.mid  { background: linear-gradient(90deg, var(--warning), #fbbf24); }
 .inline-metric-fill.high { background: linear-gradient(90deg, var(--danger), #f87171); }
-/* 进度条末端微光 */
+/* 进度条末端微光 — 仅在填充 >10% 时可见，避免 0% 时伪元素溢出 */
 .inline-metric-fill::after {
     content: '';
     position: absolute;
     top: 0; right: 0; bottom: 0;
-    width: 8px;
+    width: 6px;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,.4));
     border-radius: 3px;
 }

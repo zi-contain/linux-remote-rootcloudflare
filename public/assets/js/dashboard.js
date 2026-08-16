@@ -534,7 +534,7 @@
     /* ============ 自动刷新 ============ */
     function startAutoRefresh() {
         stopAutoRefresh();
-        autoTimer = setInterval(loadAgents, 10000);
+        autoTimer = setInterval(loadAgents, 30000); // 30 秒刷新（降低 D1 读取：2,880 次/天 vs 10 秒的 8,640 次/天）
     }
 
     function stopAutoRefresh() {

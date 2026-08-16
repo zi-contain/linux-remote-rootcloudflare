@@ -242,6 +242,7 @@
     border-radius: 3px;
     transition: width .5s var(--ease-out);
     position: relative;
+    overflow: hidden;
 }
 .sys-mini-bar-fill.low  { background: linear-gradient(90deg, var(--success), #34d399); box-shadow: 0 0 6px rgba(16, 185, 129, .3); }
 .sys-mini-bar-fill.mid  { background: linear-gradient(90deg, var(--warning), #fbbf24); box-shadow: 0 0 6px rgba(245, 158, 11, .3); }

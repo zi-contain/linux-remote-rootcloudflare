@@ -500,7 +500,7 @@
 
         loadHistoryStore();
         updateConnStatus();
-        statusTimer = setInterval(() => updateConnStatus(false), 15000);
+        statusTimer = setInterval(() => updateConnStatus(false), 30000); // 30 秒刷新（降低 D1 读取）
         input.focus();
     }
 

@@ -5,7 +5,13 @@
  * 服务端在连接内持续探测待执行命令，一旦发现立即逐行推送。
  *
  * CF Workers 通过 ReadableStream 实现流式响应，
- * 轮询 D1 每 1 秒一次，最多 12 秒（12 次 D1 查询，远低于 subrequest 限制）。
+ * 轮询 D1 每 1 秒一次，最多 25 秒（25 次 D1 查询）。
+ *
+ * 免费额度每日用量估算（单 Agent）：
+ *   - Pages Function 请求：86400 / 25.2 ≈ 3,429 次/天（限额 100,000）
+ *   - D1 读取：3,429 × 25 ≈ 85,725 行/天（限额 5,000,000）
+ *   - D1 写入：3,429 次/天（限额 100,000）
+ *   - 理论最大 Agent 数：~29 个（受 Function 请求/D1 写入限制）
  *
  * 纯文本行协议（每行一条指令，\n 结尾）：
  *   OK <agent_id>          连接确认
@@ -94,9 +100,9 @@ export async function onRequestPost({ request, env }) {
       // 连接确认
       controller.enqueue(encoder.encode(`OK ${agentId}\n`));
 
-      const deadline = Date.now() + 20000; // 单次连接最长 20 秒（平衡延迟与 D1 消耗）
-      const pollInterval = 250;             // 探测间隔 0.25 秒（命令下发延迟 ≤250ms）
-      const beatEvery = 8000;               // 每 8 秒发一次心跳
+      const deadline = Date.now() + 25000; // 单次连接最长 25 秒（减少重连次数，降低 Function 请求量）
+      const pollInterval = 1000;             // 探测间隔 1 秒（命令下发延迟 ≤1s，D1 读取降低 4 倍）
+      const beatEvery = 10000;               // 每 10 秒发一次心跳
       let lastBeat = Date.now();
       // last_seen 已在连接初始时更新，25 秒后重连会再次更新，循环内无需重复写入
 

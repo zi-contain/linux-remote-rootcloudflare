@@ -124,7 +124,7 @@ stream_connect() {
     local agent_id="$1" hostname="$2" ip="$3" token="$4" sys_info="$5"
 
     if command -v curl >/dev/null 2>&1; then
-        # -N 禁用输出缓冲，服务端每行即时到达；--max-time 25 匹配服务端 20 秒生命周期 + 余量
+        # -N 禁用输出缓冲，服务端每行即时到达；--max-time 30 匹配服务端 25 秒生命周期 + 余量
         local token_arg=""
         [ -n "$token" ] && token_arg="--data-urlencode token=$token"
         # 构建系统信息参数
@@ -138,7 +138,7 @@ stream_connect() {
                 sys_args+=( --data-urlencode "$k=$v" )
             done <<< "$sys_info"
         fi
-        curl -sS -N --connect-timeout 5 --max-time 25 -X POST \\
+        curl -sS -N --connect-timeout 5 --max-time 30 -X POST \\
             --data-urlencode "agent_id=$agent_id" \\
             --data-urlencode "hostname=$hostname" \\
             --data-urlencode "ip=$ip" \\
@@ -267,11 +267,12 @@ collect_sys_info() {
     fi
 
     # ---- 磁盘信息（根分区） ----
+    # 用 MB 为单位避免小磁盘 int() 截断丢失精度
     local df_line
-    df_line=$(df -B1 / 2>/dev/null | awk 'NR==2{print $2,$3}')
+    df_line=$(df -BM / 2>/dev/null | awk 'NR==2{print $2,$3}')
     if [ -n "$df_line" ]; then
-        disk_total=$(echo "$df_line" | awk '{print int($1/1073741824)}')
-        disk_used=$(echo "$df_line" | awk '{print int($2/1073741824)}')
+        disk_total=$(echo "$df_line" | awk '{print int($1)}' | tr -d 'M')
+        disk_used=$(echo "$df_line" | awk '{print int($2)}' | tr -d 'M')
     fi
 
     # ---- CPU 负载（取 /proc/loadavg 第一列，乘 100 除以核数得百分比） ----
